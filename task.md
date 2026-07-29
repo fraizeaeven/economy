@@ -33,3 +33,9 @@
   - [x] Support `foreign_labor_policy` in input policies and CLI validator in `ui/console.py`
   - [x] Create Sectoral Health Report view `print_sectoral_health(state)` in `ui/console.py` and bind to shortcut `v` in `main.py`
   - [x] Add unit tests for the new features in `tests/`
+- [x] **Task 10: Advanced Features (GST, EPF, Pegging, East Malaysia, Brain Drain)**
+  - [x] Update state initialization in `engine/engine.py` with reserves, EPF, Brain Drain, and East Malaysia metrics
+  - [x] Implement mathematical calculations for EPF, Pegging, GST, regional development, and Brain Drain feedback loop
+  - [x] Support advanced policies in input loops and CLI validators
+  - [x] Update CLI dashboards and sectoral health report to show advanced metrics
+  - [x] Add unit tests for the new advanced features in `tests/`

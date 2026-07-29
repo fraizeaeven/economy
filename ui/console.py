@@ -161,6 +161,7 @@ def print_sectoral_health(state: dict):
     metrics = state["metrics"]
     households = state["households"]
     external = state["external"]
+    govt = state["government"]
     
     print_separator("=")
     print(f"{CLR_BOLD}{CLR_HEADER}             METS SECTORAL HEALTH & POPULATION REPORT{CLR_RESET}")
@@ -177,12 +178,28 @@ def print_sectoral_health(state: dict):
     
     print(f"{CLR_BOLD}* POPULATION & SOCIAL EQUILIBRIUM:{CLR_RESET}")
     pli_val = 2584.0 * (metrics["cpi"] / 2.5)
-    print(f"  - Poverty Rate:           {CLR_YELLOW}{metrics['poverty_rate']:.2f}%{CLR_RESET} (Poverty Line: RM {pli_val:.2f}/month)")
+    print(f"  - Poverty Rate (National): {CLR_YELLOW}{metrics['poverty_rate']:.2f}%{CLR_RESET} (Poverty Line: RM {pli_val:.2f}/month)")
+    print(f"  - East Malaysia Poverty:  {CLR_RED if metrics.get('east_malaysia_poverty', 14.5) > 10.0 else CLR_GREEN}{metrics.get('east_malaysia_poverty', 14.5):.2f}%{CLR_RESET} (Sabah & Sarawak)")
     print(f"  - B40 Monthly Income:     RM {households['b40']['salary'] + households['b40']['str_aid']:.2f} (Gaji: RM {households['b40']['salary']:.2f} | STR: RM {households['b40']['str_aid']:.2f})")
+    
+    # Brain Drain Index
+    bd_idx = metrics.get("brain_drain_index", 3.0)
+    bd_color = CLR_RED if bd_idx > 5.0 else (CLR_YELLOW if bd_idx > 3.5 else CLR_GREEN)
+    print(f"  - Brain Drain Index:      {bd_color}{bd_idx:.2f} / 10.0{CLR_RESET} " + (f"{CLR_RED}(HIGH TALENT FLIGHT!){CLR_RESET}" if bd_idx > 5.0 else ""))
     
     print_separator("-")
     
-    print(f"{CLR_BOLD}* LABOR FORCE PROFILE:{CLR_RESET}")
+    print(f"{CLR_BOLD}* LIQUIDITY, RESERVES & FUND POOLS:{CLR_RESET}")
+    reserves_val = metrics.get("foreign_reserves", 115.0)
+    res_color = CLR_RED if reserves_val < 30.0 else (CLR_YELLOW if reserves_val < 75.0 else CLR_GREEN)
+    
+    print(f"  - BNM Foreign Reserves:   {res_color}USD {reserves_val:.2f} Billion{CLR_RESET} (Peg Guard limit: > USD 10.0B)")
+    print(f"  - EPF (KWSP) Fund Pool:   {CLR_GREEN}RM {metrics.get('epf_pool', 750.0):.2f} Billion{CLR_RESET} (Withdrawal: {govt.get('epf_withdrawal_policy', 'none').upper()})")
+    print(f"  - Exchange Rate Regime:   {CLR_BOLD}{govt.get('exchange_rate_policy', 'floating').upper()}{CLR_RESET}")
+    
+    print_separator("-")
+    
+    print(f"{CLR_BOLD}* LABOR & EXTERNAL PROFILE:{CLR_RESET}")
     reg_fw = external.get("registered_foreign_workers", 2.2)
     unreg_fw = external.get("unregistered_foreign_workers", 1.2)
     refugees = external.get("refugees", 0.2)
@@ -191,11 +208,11 @@ def print_sectoral_health(state: dict):
     print(f"  - Registered Workers:     {reg_fw:.2f} Million")
     print(f"  - Unregistered Workers:   {unreg_fw:.2f} Million")
     print(f"  - Refugee Population:     {refugees:.2f} Million")
-    print(f"  - Current Labor Policy:   {CLR_BOLD}{policy}{CLR_RESET}")
+    print(f"  - Labor / Border Policy:  {CLR_BOLD}{policy}{CLR_RESET}")
     
     print_separator("-")
     
-    print(f"{CLR_BOLD}* CAPITAL INVESTMENT INFLOWS (QUARTERLY):{CLR_RESET}")
-    print(f"  - Foreign Direct Investment (FDI): {CLR_GREEN}RM {metrics['fdi']:.2f} Billion{CLR_RESET}")
-    print(f"  - Domestic Direct Investment (DDI): {CLR_GREEN}RM {metrics['ddi']:.2f} Billion{CLR_RESET}")
+    print(f"{CLR_BOLD}* CAPITAL INVESTMENT & TRADE (QUARTERLY):{CLR_RESET}")
+    print(f"  - Foreign Direct Investment (FDI): RM {metrics['fdi']:.2f} Billion | Domestic (DDI): RM {metrics['ddi']:.2f} Billion")
+    print(f"  - Tourism Service Exports:         RM {metrics.get('tourism_revenue', 10.0):.2f} Billion")
     print_separator()

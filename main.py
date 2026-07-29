@@ -155,6 +155,12 @@ def run_simulation():
                 devex_val = prompt_float("  Set Development Expenditure (RM Billion)", 10.0, 50.0, engine.state["government"]["dev_exp"])
                 labor_policy = prompt_choice("  Set Foreign Labor Policy", ["loose", "balanced", "strict"], engine.state["external"]["foreign_labor_policy"])
                 
+                # Fetch advanced inputs
+                tax_reg = prompt_choice("  Set Tax Regime", ["sst", "gst"], engine.state["government"].get("tax_regime", "sst"))
+                epf_withdrawal = prompt_choice("  Set EPF Withdrawal Policy", ["none", "targeted", "unrestricted"], engine.state["government"].get("epf_withdrawal_policy", "none"))
+                ex_rate_regime = prompt_choice("  Set Exchange Rate Regime", ["floating", "pegged_4.00", "pegged_3.80"], engine.state["government"].get("exchange_rate_policy", "floating"))
+                em_alloc = prompt_float("  Set East Malaysia Infrastructure Allocation (RM Billion)", 2.0, 15.0, engine.state["government"].get("east_malaysia_allocation", 4.0))
+                
                 # Bundle and execute step
                 policies = {
                     "opr": opr_val,
@@ -162,7 +168,11 @@ def run_simulation():
                     "corporate_tax": corp_tax_val,
                     "subsidy_regime": subsidy_regime,
                     "development_expenditure": devex_val,
-                    "foreign_labor_policy": labor_policy
+                    "foreign_labor_policy": labor_policy,
+                    "tax_regime": tax_reg,
+                    "epf_withdrawal_policy": epf_withdrawal,
+                    "exchange_rate_policy": ex_rate_regime,
+                    "east_malaysia_allocation": em_alloc
                 }
                 
                 # Clear active shock text from state for next turns

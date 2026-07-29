@@ -47,7 +47,12 @@ class EconomyEngine:
                 "sme_health": 75.0,         # SME/PKS health index (%)
                 "utilities_health": 85.0,   # Utilities company health index (%)
                 "banking_health": 80.0,     # Commercial banks health index (%)
-                "govt_health": 78.0         # Government fiscal health index (%)
+                "govt_health": 78.0,        # Government fiscal health index (%)
+                "brain_drain_index": 3.0,   # Talent flight index (0.0 to 10.0)
+                "east_malaysia_poverty": 14.5, # Sabah & Sarawak poverty (%)
+                "foreign_reserves": 115.0,  # BNM reserves (USD Billion)
+                "epf_pool": 750.0,          # KWSP total asset pool (RM Billion)
+                "tourism_revenue": 10.0     # Quarterly Tourism export earnings (RM Billion)
             },
             "households": {
                 "b40": {
@@ -91,7 +96,11 @@ class EconomyEngine:
                 "tax_revenue": 82.5,        # RM Billion
                 "operating_exp": 75.0,      # RM Billion
                 "dev_exp": 22.0,            # RM Billion
-                "subsidy_policy": "blanket" # "blanket" or "targeted"
+                "subsidy_policy": "blanket", # "blanket" or "targeted"
+                "tax_regime": "sst",        # "sst" or "gst"
+                "epf_withdrawal_policy": "none", # "none", "targeted", or "unrestricted"
+                "exchange_rate_policy": "floating", # "floating", "pegged_4.00", or "pegged_3.80"
+                "east_malaysia_allocation": 4.0 # RM Billion
             },
             "sme": {
                 "revenue": 120.0,
@@ -128,6 +137,27 @@ class EconomyEngine:
         if labor_policy not in ["loose", "balanced", "strict"]:
             labor_policy = "balanced"
             
+        prev_metrics = self.state["metrics"]
+        prev_govt = self.state["government"]
+        
+        # Advanced policies extraction
+        tax_regime = policies.get("tax_regime", prev_govt.get("tax_regime", "sst"))
+        if tax_regime not in ["sst", "gst"]:
+            tax_regime = "sst"
+            
+        epf_policy = policies.get("epf_withdrawal_policy", prev_govt.get("epf_withdrawal_policy", "none"))
+        if epf_policy not in ["none", "targeted", "unrestricted"]:
+            epf_policy = "none"
+            
+        ex_rate_policy = policies.get("exchange_rate_policy", prev_govt.get("exchange_rate_policy", "floating"))
+        if ex_rate_policy not in ["floating", "pegged_4.00", "pegged_3.80"]:
+            ex_rate_policy = "floating"
+            
+        east_malaysia_allocation = clamp(
+            policies.get("east_malaysia_allocation", prev_govt.get("east_malaysia_allocation", 4.0)),
+            2.0, 15.0
+        )
+            
         # Update foreign population and cost factors based on policy choice
         if labor_policy == "loose":
             self.state["external"]["registered_foreign_workers"] = 2.5
@@ -147,17 +177,37 @@ class EconomyEngine:
             
         self.state["external"]["foreign_labor_policy"] = labor_policy
         
-        prev_metrics = self.state["metrics"]
-        prev_govt = self.state["government"]
         prev_myr = prev_metrics["myr_usd"]
         
         # 3. Update external variables from state (could be altered by events module)
         brent_crude = self.state["external"]["brent_crude"]
         fed_rate = self.state["external"]["fed_rate"]
         
-        # 4. Exchange Rate calculation
-        myr_usd = calculate_exchange_rate(4.40, opr, fed_rate, brent_crude)
+        # 4. Exchange Rate & Reserves calculation
+        market_myr_usd = calculate_exchange_rate(4.40, opr, fed_rate, brent_crude)
+        
+        # Defending pegged currency consumes foreign reserves
+        if ex_rate_policy == "pegged_4.00":
+            myr_usd = 4.00
+            reserves_change = -2.5 * (market_myr_usd - 4.00)
+        elif ex_rate_policy == "pegged_3.80":
+            myr_usd = 3.80
+            reserves_change = -3.5 * (market_myr_usd - 3.80)
+        else:
+            myr_usd = market_myr_usd
+            # float reserves flow
+            reserves_change = 0.5 * (prev_metrics.get("fdi", 15.0) + prev_metrics.get("ddi", 25.0) - 40.0) / 10.0
+            
         myr_change = myr_usd - prev_myr
+        foreign_reserves = max(0.0, prev_metrics.get("foreign_reserves", 115.0) + reserves_change)
+        
+        # 4.2 Brain Drain Index & Suppression Factor
+        prev_satisfaction = prev_metrics["public_satisfaction"]
+        brain_drain = 3.0 + 1.5 * (myr_usd - 4.40) - 0.1 * (prev_satisfaction - 60.0)
+        if tax_regime == "gst":
+            brain_drain += 1.0
+        brain_drain = clamp(brain_drain, 1.0, 10.0)
+        brain_drain_suppression = 1.0 - (max(0.0, brain_drain - 5.0) / 5.0) * 0.08
         
         # 5. Unemployment impact from SME profitability
         sme_profit = self.state["sme"]["profit"]
@@ -191,7 +241,8 @@ class EconomyEngine:
             # Update salary based on job factor & foreign worker wage impact
             factor = job_factor if key != "t20" else 1.0
             wage_factor = b40_wage_factor if key == "b40" else 1.0
-            segment["salary"] = round(segment["salary_base"] * factor * wage_factor, 2)
+            salary_suppression = brain_drain_suppression if key in ["m40", "t20"] else 1.0
+            segment["salary"] = round(segment["salary_base"] * factor * wage_factor * salary_suppression, 2)
             
             # Apply OPR updates to debt service
             # B40 sensitivity = 0.2, M40 = 0.6, T20 = 0.3
@@ -204,6 +255,24 @@ class EconomyEngine:
         households["b40"]["str_aid"] = b40_str_monthly
         households["m40"]["str_aid"] = m40_str_monthly
         
+        # EPF caruman calculations
+        total_epf_contribution = sum((households[k]["salary"] * households[k]["households"] * 3 * 0.24) / 1000.0 for k in ["b40", "m40", "t20"])
+        
+        epf_withdrawal_inject_b40 = 0.0
+        epf_withdrawal_inject_m40 = 0.0
+        epf_withdrawal_amt = 0.0
+        
+        if epf_policy == "targeted":
+            epf_withdrawal_amt = 5.0
+            epf_withdrawal_inject_b40 = 3.0 / (households["b40"]["households"] * 3) * 1000.0
+            epf_withdrawal_inject_m40 = 2.0 / (households["m40"]["households"] * 3) * 1000.0
+        elif epf_policy == "unrestricted":
+            epf_withdrawal_amt = 12.0
+            epf_withdrawal_inject_b40 = 7.0 / (households["b40"]["households"] * 3) * 1000.0
+            epf_withdrawal_inject_m40 = 5.0 / (households["m40"]["households"] * 3) * 1000.0
+            
+        epf_pool = max(0.0, prev_metrics.get("epf_pool", 750.0) + total_epf_contribution - epf_withdrawal_amt)
+        
         # Calculate Household Income, commitments & consumption in RM Billion (Quarterly)
         # formula: Monthly (RM) * households (Million) * 3 (months) / 1000.0
         segment_consumption = {}
@@ -213,7 +282,8 @@ class EconomyEngine:
             segment = households[key]
             n_households = segment["households"]
             
-            monthly_income = segment["salary"] + segment["str_aid"]
+            withdrawal_inject = epf_withdrawal_inject_b40 if key == "b40" else (epf_withdrawal_inject_m40 if key == "m40" else 0.0)
+            monthly_income = segment["salary"] + segment["str_aid"] + withdrawal_inject
             q_gross_income = (monthly_income * n_households * 3) / 1000.0
             
             # personal income tax
@@ -253,8 +323,14 @@ class EconomyEngine:
         m40_str_cost = (m40_str_monthly * households["m40"]["households"] * 3) / 1000.0
         total_str_cost = b40_str_cost + m40_str_cost
         
-        # Taxes collected
-        sst_revenue = (total_consumption * 2.5) * sst_rate
+        # Taxes collected (GST vs SST)
+        if tax_regime == "gst":
+            sst_revenue = 0.0
+            tax_reg_rev = (total_consumption * 2.5) * 0.90 * 0.06  # 6% GST applied to 90% consumption
+        else:
+            sst_revenue = (total_consumption * 2.5) * 0.40 * sst_rate  # SST applied to 40% consumption
+            tax_reg_rev = sst_revenue
+            
         corp_tax_revenue = max(0.0, sme_profit * corp_tax_rate) + 20.0  # 20B base from large corps
         
         # Personal tax collection
@@ -264,7 +340,7 @@ class EconomyEngine:
             rate = 0.0 if key == "b40" else (0.04 if key == "m40" else 0.16)
             personal_tax_rev += ((segment["salary"] + segment["str_aid"]) * segment["households"] * 3 / 1000.0) * rate
             
-        total_tax_revenue = sst_revenue + corp_tax_revenue + (personal_tax_rev * 2.0) + 38.0  # 38.0B other state income
+        total_tax_revenue = tax_reg_rev + corp_tax_revenue + (personal_tax_rev * 2.0) + 38.0  # 38.0B other state income
         
         # Government expenditure
         total_govt_spending = operating_exp + dev_exp + total_str_cost
@@ -274,26 +350,47 @@ class EconomyEngine:
             "tax_revenue": round(total_tax_revenue, 2),
             "operating_exp": round(operating_exp, 2),
             "dev_exp": round(dev_exp, 2),
-            "subsidy_policy": subsidy_policy
+            "subsidy_policy": subsidy_policy,
+            "tax_regime": tax_regime,
+            "epf_withdrawal_policy": epf_policy,
+            "exchange_rate_policy": ex_rate_policy,
+            "east_malaysia_allocation": east_malaysia_allocation
         }
         
         # 10. Macroeconomic Aggregate Indicators
         # Calculate FDI & DDI (Foreign & Domestic Investment)
         fdi = max(2.0, 15.0 * (1.0 - 1.5 * (corp_tax_rate - 0.24) - 0.2 * abs(myr_usd - 4.40)))
-        ddi = max(5.0, 25.0 * (1.0 - 0.05 * (opr - 3.00) + 0.1 * (sme_profit - 15.0)))
+        
+        # DDI is driven by EPF pool size factor (baseline pool 750)
+        epf_factor = epf_pool / 750.0
+        
+        # Apply direct capital reduction penalty to DDI from EPF withdrawals
+        epf_withdrawal_penalty = 1.0
+        if epf_policy == "targeted":
+            epf_withdrawal_penalty = 0.85
+        elif epf_policy == "unrestricted":
+            epf_withdrawal_penalty = 0.70
+            
+        ddi = max(5.0, 25.0 * (1.0 - 0.05 * (opr - 3.00) + 0.1 * (sme_profit - 15.0)) * epf_factor * epf_withdrawal_penalty)
         
         # Investment (OPR-sensitive base + Corporate Profit multiplier)
         investment = (ddi + fdi) * 2.5 + max(0.0, sme_profit * 0.25)
         
+        # Tourism Revenue calculation
+        tourism_revenue = 10.0 * (1.0 + 0.15 * (myr_usd - 4.40) - (0.05 if labor_policy == "strict" else 0.0))
+        
         # Net exports (sensitive to exchange rate)
-        # Weaker MYR (myr_usd goes up) -> Exports boost, imports contract
         ex_factor = (myr_usd - 4.40)
-        exports = 110.0 * (1.0 + 0.15 * ex_factor) + (brent_crude - 80.0) * 0.3
+        exports = 110.0 * (1.0 + 0.15 * ex_factor) + (brent_crude - 80.0) * 0.3 + tourism_revenue
         imports = 95.0 * (1.0 - 0.10 * ex_factor)
         net_exports = exports - imports
         
+        # Regional development effective multiplier
+        # EM infrastructure allocation has a 0.8x multiplier, West Malaysia has 1.2x multiplier
+        dev_exp_effective = (dev_exp - east_malaysia_allocation) * 1.2 + (east_malaysia_allocation * 0.8)
+        
         # GDP expenditure formula
-        gdp = (total_consumption * 2.5) + investment + (operating_exp + dev_exp) + net_exports
+        gdp = (total_consumption * 2.5) + investment + (operating_exp + dev_exp_effective) + net_exports
         
         # GDP Growth Rate
         prev_gdp = prev_metrics["gdp"]
@@ -310,6 +407,16 @@ class EconomyEngine:
             prev_govt["subsidy_policy"]
         )
         
+        # Apply GST one-off implementation/rollback inflation shocks
+        if prev_govt.get("tax_regime", "sst") == "sst" and tax_regime == "gst":
+            cpi += 2.0
+        elif prev_govt.get("tax_regime", "sst") == "gst" and tax_regime == "sst":
+            cpi -= 1.0
+            
+        # East Malaysia Poverty adjustment
+        em_poverty_change = -0.3 * (east_malaysia_allocation - 4.0) - 0.2
+        east_malaysia_poverty = clamp(prev_metrics.get("east_malaysia_poverty", 14.5) + em_poverty_change, 2.0, 25.0)
+        
         # National Debt
         national_debt = prev_metrics["national_debt"] - fiscal_deficit
         debt_to_gdp = (national_debt / (gdp * 4.0)) * 100.0
@@ -323,7 +430,7 @@ class EconomyEngine:
             satisfaction -= (cpi - 3.0) * 2.5  # high inflation drops satisfaction
         if unemployment > 3.5:
             satisfaction -= (unemployment - 3.5) * 4.0  # job losses drop satisfaction
-        if sst_rate > 0.06:
+        if sst_rate > 0.06 and tax_regime == "sst":
             satisfaction -= (sst_rate - 0.06) * 150.0  # higher tax rates drops satisfaction
             
         # Positive factors
@@ -338,6 +445,20 @@ class EconomyEngine:
         if total_str_cost > 3.0:
             satisfaction += (total_str_cost - 3.0) * 0.5
             
+        # GST tax regime backlash
+        if tax_regime == "gst":
+            satisfaction -= 8.0
+            
+        # EPF withdrawal boost
+        if epf_policy == "targeted":
+            satisfaction += 4.0
+        elif epf_policy == "unrestricted":
+            satisfaction += 10.0
+            
+        # Reserves insecurity check
+        if foreign_reserves < 30.0:
+            satisfaction -= (30.0 - foreign_reserves) * 0.5
+            
         satisfaction = clamp(satisfaction, 0.0, 100.0)
         
         # 11.2 Poverty Rate Calculation
@@ -347,10 +468,11 @@ class EconomyEngine:
         poverty_rate = clamp(poverty_rate, 1.5, 25.0)
 
         # 11.3 Sectoral Health Indices
-        # Family Health
+        # Family Health (penalized by EPF withdrawals)
         avg_dsr = ((households["b40"]["commitments"]["debt_service"] / households["b40"]["salary"]) + 
                    (households["m40"]["commitments"]["debt_service"] / households["m40"]["salary"])) / 2.0
-        family_health = 100.0 - (avg_dsr * 150.0) - (poverty_rate * 2.0) + (households["m40"]["savings"] * 0.2)
+        epf_penalty = 15.0 if epf_policy == "unrestricted" else (7.0 if epf_policy == "targeted" else 0.0)
+        family_health = 100.0 - (avg_dsr * 150.0) - (poverty_rate * 2.0) + (households["m40"]["savings"] * 0.2) - epf_penalty
         family_health = clamp(family_health, 0.0, 100.0)
 
         # SME Health
@@ -394,7 +516,12 @@ class EconomyEngine:
             "sme_health": round(sme_health, 2),
             "utilities_health": round(utilities_health, 2),
             "banking_health": round(banking_health, 2),
-            "govt_health": round(govt_health, 2)
+            "govt_health": round(govt_health, 2),
+            "brain_drain_index": round(brain_drain, 2),
+            "east_malaysia_poverty": round(east_malaysia_poverty, 2),
+            "foreign_reserves": round(foreign_reserves, 2),
+            "epf_pool": round(epf_pool, 2),
+            "tourism_revenue": round(tourism_revenue, 2)
         }
         
         return self.state
@@ -403,7 +530,7 @@ class EconomyEngine:
         """
         Evaluates current metrics for game completion:
         - Win/Re-election: Every 20 quarters, checks if debt_to_gdp < 65% and satisfaction > 50%
-        - Loss: Debt-to-GDP > 80% or public satisfaction < 20%, or losing an election.
+        - Loss: Debt-to-GDP > 80%, reserves < 10B, or public satisfaction < 20%
         """
         metrics = self.state["metrics"]
         q = self.state["quarter"]
@@ -413,6 +540,9 @@ class EconomyEngine:
             
         if metrics["public_satisfaction"] <= 20.0:
             return True, "CIVIL_UNREST: Public satisfaction has plummeted below 20%. Widespread protests and strikes have paralyzed the country. Government dissolved!"
+            
+        if metrics.get("foreign_reserves", 115.0) < 10.0:
+            return True, "RESERVES_DEPLETED: Bank Negara's foreign reserves fell below USD 10 Billion. Sovereign balance sheet collapsed, causing extreme capital flight and currency default!"
             
         # Check election at the end of each 20-quarter cycle (Term)
         # e.g., Q21 (Q20 step just completed), Q41 (Q40 completed), etc.
