@@ -1,0 +1,2 @@
+# Malaysia Economy Text Simulator (METS)
+# No external dependencies required for core simulator.

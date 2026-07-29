@@ -1,0 +1,29 @@
+# Task List - Malaysia Economy Text Simulator (METS)
+
+- [x] **Task 1: Core Setup**
+  - [x] Initialize `engine/__init__.py`, `ui/__init__.py`, `tests/__init__.py`
+  - [x] Setup `requirements.txt` (empty/basic dependencies)
+- [ ] **Task 2: Mathematical Formulas (`engine/formulas.py`)**
+  - [ ] Implement `calculate_debt_service` with OPR transmission
+  - [ ] Implement `calculate_consumption` for B40, M40, T20 segments
+  - [ ] Implement `calculate_exchange_rate` (MYR/USD sensitivity to OPR differential & Brent crude)
+  - [ ] Implement `calculate_inflation` (demand-pull, imported, and subsidy-driven)
+- [ ] **Task 3: Simulation Engine (`engine/engine.py`)**
+  - [ ] Implement default state constructor matching Malaysian statistics
+  - [ ] Implement `step()` method coordinates formulas to update state variables
+  - [ ] Implement `check_game_status()` for win/loss conditions
+  - [ ] Implement `save_state()` / `load_state()` JSON serialization
+- [ ] **Task 4: Macroeconomic Shock Events (`engine/events.py`)**
+  - [ ] Define shock templates (e.g. FED_RATE_HIKE, BRENT_OIL_CRASH, CIVIL_SERVANT_PAYRISE)
+  - [ ] Implement logic to apply shocks to current state attributes
+- [ ] **Task 5: Terminal UI and Input Validator (`ui/console.py`)**
+  - [ ] Implement KPI dashboard formatter (using ANSI colors for limits)
+  - [ ] Implement numeric input parsing and verification for user policy controls
+- [ ] **Task 6: ASCII Data Visualization (`ui/charts.py`)**
+  - [ ] Renders horizontal bar charts for trends (e.g. Public Satisfaction historical logs)
+- [ ] **Task 7: Application Main Loop (`main.py`)**
+  - [ ] Implement main game loop running 20 quarters with introductory texts
+  - [ ] Wire user actions, event warnings, state logs, and restart commands
+- [ ] **Task 8: Unit Testing Suite (`tests/`)**
+  - [ ] Write tests verifying math formulas output consistency
+  - [ ] Write integration test running 20 step transitions validating metric constraints
