@@ -1,7 +1,7 @@
 import unittest
 import os
 import tempfile
-from engine.engine import EconomyEngine
+from engine.main_engine import EconomyEngine
 
 class TestEconomyEngine(unittest.TestCase):
     def setUp(self):

@@ -1,5 +1,5 @@
 import unittest
-from engine.engine import EconomyEngine
+from engine.main_engine import EconomyEngine
 from engine.events import trigger_event, EVENTS
 
 class TestEvents(unittest.TestCase):

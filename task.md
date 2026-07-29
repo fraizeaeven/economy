@@ -39,3 +39,9 @@
   - [x] Support advanced policies in input loops and CLI validators
   - [x] Update CLI dashboards and sectoral health report to show advanced metrics
   - [x] Add unit tests for the new advanced features in `tests/`
+- [x] **Task 11: Modular Engine Refactoring**
+  - [x] Split monolithic `engine.py` into `main_engine.py` and 4 domain-specific sub-engines
+  - [x] Re-wire application main loop and unit test imports
+  - [x] Verify complete logic parity using full unit and integration test suite
+  - [x] Safely remove obsolete monolithic source code
+

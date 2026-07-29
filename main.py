@@ -1,6 +1,6 @@
 import os
 import sys
-from engine.engine import EconomyEngine
+from engine.main_engine import EconomyEngine
 from engine.events import get_random_event, trigger_event, EVENTS
 from ui.console import (
     print_dashboard,

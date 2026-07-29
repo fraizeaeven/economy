@@ -1,5 +1,5 @@
 import unittest
-from engine.engine import EconomyEngine
+from engine.main_engine import EconomyEngine
 
 class TestAdvancedFeatures(unittest.TestCase):
     def setUp(self):

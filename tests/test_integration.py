@@ -1,5 +1,5 @@
 import unittest
-from engine.engine import EconomyEngine
+from engine.main_engine import EconomyEngine
 
 class TestIntegration(unittest.TestCase):
     def test_full_20_quarter_simulation_loop(self):
