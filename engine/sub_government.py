@@ -116,31 +116,61 @@ def step_government(
     # GDP Growth Rate
     gdp_growth = ((gdp - prev_gdp) / prev_gdp) * 4.0 * 100.0  # Annualized quarterly growth
     
-    # Inflation CPI
+    # Inflation CPI (DOSM Weighted Basket)
+    # CPI = 0.30*Food + 0.15*Transport + 0.23*Utility + 0.32*Core
+    cpi_base = 1.5 + myr_change * 4.0
+    
     prev_consumption = sum(current_snapshot["households"][k]["salary"] * current_snapshot["households"][k]["households"] * 3 / 1000.0 for k in ["b40", "m40", "t20"])
     consumption_growth = (total_consumption - prev_consumption) / prev_gdp if prev_gdp > 0 else 0.02
     
-    cpi = calculate_inflation(
-        consumption_growth, 
-        myr_change, 
-        subsidy_policy, 
-        prev_govt["subsidy_policy"]
-    )
+    # 1. Food: driven by consumption growth and labor tightness
+    food_inf = cpi_base + consumption_growth * 1.5
+    if labor_policy == "strict":
+        food_inf += 0.5
+        
+    # 2. Transport: driven by Petrol (RON95) and Diesel prices
+    ron95_mult = state["metrics"].get("ron95_price", 2.05) / 2.05
+    diesel_mult = state["metrics"].get("diesel_price", 2.15) / 2.15
+    transport_inf = cpi_base + (ron95_mult - 1.0) * 15.0 + (diesel_mult - 1.0) * 5.0
     
-    # Apply GST one-off implementation/rollback inflation shocks
+    # 3. Housing & Utilities: driven by tariff policy and interest rates (OPR)
+    util_inf = cpi_base + 0.10 * (state["metrics"]["opr"] - 3.00)
+    if electricity_tariff == "market_rate":
+        util_inf += 4.0
+    elif electricity_tariff == "targeted_t20":
+        util_inf += 1.5
+        
+    # 4. Core goods: driven by consumption growth and GST tax shocks
+    core_inf = cpi_base + consumption_growth * 2.0
+    if tax_regime == "gst":
+        core_inf += 1.5
+        
+    cpi = 0.30 * food_inf + 0.15 * transport_inf + 0.23 * util_inf + 0.32 * core_inf
+    
+    # One-off policy adjustment spikes
     if prev_govt.get("tax_regime", "sst") == "sst" and tax_regime == "gst":
         cpi += 2.0
     elif prev_govt.get("tax_regime", "sst") == "gst" and tax_regime == "sst":
         cpi -= 1.0
         
-    # Apply Petrol rationalization one-off inflation shock (+1.2%)
     if prev_govt.get("petrol_subsidy_regime", "blanket") != "rationalized" and petrol_regime == "rationalized":
         cpi += 1.2
         
-    # Apply Diesel rationalization one-off inflation shock (+0.8%)
     if prev_govt.get("diesel_subsidy_regime", "blanket") != "rationalized" and diesel_regime == "rationalized":
         cpi += 0.8
         
+    cpi = max(-2.0, cpi)
+    
+    # Gini Coefficient Calculation (DOSM Inequality Metric)
+    inc_b40 = (households["b40"]["salary"] + households["b40"]["str_aid"]) * households["b40"]["households"]
+    inc_m40 = (households["m40"]["salary"] + households["m40"]["str_aid"]) * households["m40"]["households"]
+    inc_t20 = (households["t20"]["salary"] + households["t20"]["str_aid"]) * households["t20"]["households"]
+    inc_total = inc_b40 + inc_m40 + inc_t20
+    
+    s1 = inc_b40 / inc_total if inc_total > 0 else 0.18
+    s2 = (inc_b40 + inc_m40) / inc_total if inc_total > 0 else 0.55
+    gini = 1.0 - (0.80 * s1 + 0.60 * s2 + 0.20)
+    
     # East Malaysia Poverty adjustment
     em_poverty_change = -0.3 * (east_malaysia_allocation - 4.0) - 0.2
     east_malaysia_poverty = clamp(prev_metrics.get("east_malaysia_poverty", 14.5) + em_poverty_change, 2.0, 25.0)
@@ -195,6 +225,9 @@ def step_government(
     if electricity_tariff == "market_rate":
         satisfaction -= 4.0
         
+    # Gini backlash
+    satisfaction -= (gini - 0.390) * 100.0
+    
     # Reserves insecurity check
     if foreign_reserves < 30.0:
         satisfaction -= (30.0 - foreign_reserves) * 0.5
@@ -241,5 +274,6 @@ def step_government(
         sme_health,
         utilities_health,
         govt_health,
-        east_malaysia_poverty
+        east_malaysia_poverty,
+        gini
     )

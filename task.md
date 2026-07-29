@@ -50,5 +50,12 @@
   - [x] Integrate Petrol (RON95) and Diesel subsidy models, floating prices, transport fuel commitments, and SME cost spillovers
   - [x] Add dynamic CPI inflation and public satisfaction transmission shocks
   - [x] Implement CLI validators, input loops, and new unit tests inside `tests/test_household_expansion.py`
+- [x] **Task 13: DOSM Metrics & Forecasting Engine**
+  - [x] Incorporate grouped Gini Coefficient inequality calculation with satisfaction spillovers
+  - [x] Restructure CPI inflation based on weighted consumer baskets (Food, Transport, Utilities, Core)
+  - [x] Build linear regression trend projections (y = mx + c) predicting next 4 quarters for GDP, Debt, Satisfaction, and CPI
+  - [x] Bind keyboard command `p` to render linear projections forecasting dashboards
+  - [x] Add automated unit tests inside `tests/test_forecasting.py` verifying prediction accuracy
+
 
 

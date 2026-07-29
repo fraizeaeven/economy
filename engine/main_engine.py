@@ -46,7 +46,8 @@ class EconomyEngine:
                 "epf_pool": 750.0,          # KWSP total asset pool (RM Billion)
                 "tourism_revenue": 10.0,    # Quarterly Tourism export earnings (RM Billion)
                 "ron95_price": 2.05,        # Retail petrol price (RM/Litre)
-                "diesel_price": 2.15        # Retail diesel price (RM/Litre)
+                "diesel_price": 2.15,       # Retail diesel price (RM/Litre)
+                "gini": 0.390               # Income inequality index (Gini Coefficient)
             },
             "households": {
                 "b40": {
@@ -324,7 +325,8 @@ class EconomyEngine:
             sme_health,
             utilities_health,
             govt_health,
-            east_malaysia_poverty
+            east_malaysia_poverty,
+            gini
         ) = step_government(
             self.state,
             total_consumption,
@@ -387,7 +389,8 @@ class EconomyEngine:
             "epf_pool": round(epf_pool, 2),
             "tourism_revenue": round(tourism_revenue, 2),
             "ron95_price": round(ron95_price, 2),
-            "diesel_price": round(diesel_price, 2)
+            "diesel_price": round(diesel_price, 2),
+            "gini": round(gini, 3)
         }
         
         return self.state
@@ -443,3 +446,65 @@ class EconomyEngine:
             return True
         except Exception:
             return False
+
+    def forecast_metrics(self) -> dict:
+        """
+        Fits a linear regression model y = mx + c to the history of:
+        - gdp
+        - debt_to_gdp
+        - public_satisfaction
+        - cpi
+        
+        Returns a dictionary containing the m, c coefficients, equations,
+        and predictions for the next 4 quarters.
+        """
+        temp_history = list(self.history)
+        # Always include the current state as the final data point
+        temp_history.append({
+            "quarter": self.state["quarter"],
+            "metrics": dict(self.state["metrics"])
+        })
+        
+        N = len(temp_history)
+        x = [q["quarter"] for q in temp_history]
+        
+        results = {}
+        target_keys = ["gdp", "debt_to_gdp", "public_satisfaction", "cpi"]
+        
+        for key in target_keys:
+            y = [q["metrics"][key] for q in temp_history]
+            
+            # Simple linear regression formula
+            sum_x = sum(x)
+            sum_y = sum(y)
+            sum_xx = sum(xi * xi for xi in x)
+            sum_xy = sum(xi * yi for xi, yi in zip(x, y))
+            
+            denominator = (N * sum_xx - sum_x * sum_x)
+            if abs(denominator) < 1e-6:
+                m = 0.0
+                c = sum_y / N
+            else:
+                m = (N * sum_xy - sum_x * sum_y) / denominator
+                c = (sum_y - m * sum_x) / N
+                
+            # Forecast next 4 quarters
+            current_q = self.state["quarter"]
+            forecasts = []
+            for i in range(1, 5):
+                proj_q = current_q + i
+                val = m * proj_q + c
+                if key == "public_satisfaction":
+                    val = max(0.0, min(100.0, val))
+                elif key == "cpi":
+                    val = max(-5.0, val)
+                forecasts.append((proj_q, round(val, 2)))
+                
+            results[key] = {
+                "m": round(m, 4),
+                "c": round(c, 4),
+                "equation": f"y = {m:.4f}x + {c:.4f}",
+                "forecasts": forecasts
+            }
+            
+        return results

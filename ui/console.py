@@ -114,10 +114,15 @@ def print_dashboard(state: dict):
     
     print_separator("-")
     
-    # Section 5: Public Approval
+    # Section 5: Public Approval & Gini Index
     approval_val = metrics["public_satisfaction"]
     approval_bar = color_value(approval_val, 60.0, 40.0) + "%"
-    print(f"{CLR_BOLD}PUBLIC SATISFACTION INDEX: {approval_bar}{CLR_RESET}")
+    
+    gini_val = metrics.get("gini", 0.390)
+    gini_color = CLR_GREEN if gini_val <= 0.390 else (CLR_YELLOW if gini_val <= 0.420 else CLR_RED)
+    gini_colored = f"{gini_color}{gini_val:.3f}{CLR_RESET}"
+    
+    print(f"{CLR_BOLD}PUBLIC SATISFACTION INDEX: {approval_bar:<20} | GINI COEFFICIENT (INEQUALITY): {gini_colored}{CLR_RESET}")
     print_separator()
 
 def prompt_float(prompt_text, min_val, max_val, default_val):
@@ -222,4 +227,53 @@ def print_sectoral_health(state: dict):
     print(f"{CLR_BOLD}* CAPITAL INVESTMENT & TRADE (QUARTERLY):{CLR_RESET}")
     print(f"  - Foreign Direct Investment (FDI): RM {metrics['fdi']:.2f} Billion | Domestic (DDI): RM {metrics['ddi']:.2f} Billion")
     print(f"  - Tourism Service Exports:         RM {metrics.get('tourism_revenue', 10.0):.2f} Billion")
+    print_separator()
+
+def print_forecasting_report(forecast_data: dict):
+    """
+    Prints a forecasting dashboard displaying the fitted linear equations (y = mx + c)
+    and quarterly predictions for the next 4 quarters.
+    """
+    print_separator()
+    print(f"{CLR_BOLD}{CLR_GREEN}========================================================================{CLR_RESET}")
+    print(f"{CLR_BOLD}       METS MACROECONOMIC FORECASTING REPORT (LINEAR REGRESSION){CLR_RESET}")
+    print(f"{CLR_BOLD}{CLR_GREEN}========================================================================{CLR_RESET}")
+    print(f"Projecting outcomes for the next 4 quarters using fitted linear trend lines:")
+    print("  Model: y = mx + c  (y: metric value, x: quarter index)")
+    print_separator("-")
+    
+    friendly_names = {
+        "gdp": "Gross Domestic Product (GDP - RM Billion)",
+        "debt_to_gdp": "National Debt-to-GDP Ratio (%)",
+        "public_satisfaction": "Public Satisfaction Index (%)",
+        "cpi": "Consumer Price Index Inflation (%)"
+    }
+    
+    for key, data in forecast_data.items():
+        name = friendly_names.get(key, key)
+        equation = data["equation"]
+        m = data["m"]
+        c = data["c"]
+        
+        print(f"\n{CLR_BOLD}* {name}:{CLR_RESET}")
+        print(f"  Linear Formula: {CLR_YELLOW}{equation}{CLR_RESET}  (Slope m: {m:+.4f} | Intercept c: {c:.4f})")
+        print("  Projections:")
+        
+        for q, val in data["forecasts"]:
+            alert = ""
+            if key == "debt_to_gdp" and val >= 80.0:
+                alert = f" {CLR_RED}[CRITICAL DEBT SHOCK WARNING!]{CLR_RESET}"
+            elif key == "debt_to_gdp" and val >= 70.0:
+                alert = f" {CLR_YELLOW}[DEBT WARNING]{CLR_RESET}"
+            elif key == "public_satisfaction" and val <= 20.0:
+                alert = f" {CLR_RED}[CRITICAL CIVIL UNREST WARNING!]{CLR_RESET}"
+            elif key == "public_satisfaction" and val <= 35.0:
+                alert = f" {CLR_YELLOW}[LOW APPROVAL WARNING]{CLR_RESET}"
+            elif key == "cpi" and val >= 4.0:
+                alert = f" {CLR_RED}[HIGH INFLATION WARNING]{CLR_RESET}"
+                
+            print(f"    - Quarter {q:<3}: {val:.2f}{alert}")
+            
+    print_separator("-")
+    print("Disclaimer: Projections assume no policy shifts or external shocks occur.")
     print_separator()

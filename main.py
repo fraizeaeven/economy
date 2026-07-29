@@ -8,6 +8,7 @@ from ui.console import (
     prompt_choice,
     print_separator,
     print_sectoral_health,
+    print_forecasting_report,
     CLR_GREEN,
     CLR_RED,
     CLR_YELLOW,
@@ -40,6 +41,7 @@ def show_help():
     print("  When prompted for OPR or policy inputs, you can enter:")
     print(f"    * {CLR_BOLD}t{CLR_RESET} - View historical trend charts (ASCII visualizers)")
     print(f"    * {CLR_BOLD}v{CLR_RESET} - View Sectoral Health, Poverty, and Foreign Population report")
+    print(f"    * {CLR_BOLD}p{CLR_RESET} - View Macroeconomic Projections (y = mx + c linear forecasting)")
     print(f"    * {CLR_BOLD}s{CLR_RESET} - Save current game state to file")
     print(f"    * {CLR_BOLD}l{CLR_RESET} - Load previous game state from file")
     print(f"    * {CLR_BOLD}h{CLR_RESET} - Show this help menu")
@@ -116,6 +118,10 @@ def run_simulation():
                 continue
             elif raw_input == 'v':
                 print_sectoral_health(engine.state)
+                continue
+            elif raw_input == 'p':
+                forecast_data = engine.forecast_metrics()
+                print_forecasting_report(forecast_data)
                 continue
             elif raw_input == 's':
                 if engine.save_state(SAVE_FILE):
