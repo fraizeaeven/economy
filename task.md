@@ -27,3 +27,9 @@
 - [x] **Task 8: Unit Testing Suite (`tests/`)**
   - [x] Write tests verifying math formulas output consistency
   - [x] Write integration test running 20 step transitions validating metric constraints
+- [x] **Task 9: Sectoral Health, Poverty, and Foreign Population**
+  - [x] Update state initialization in `engine/engine.py` with health indices, investment, and foreign population
+  - [x] Implement mathematical calculations for FDI, DDI, Poverty Rate, Labor policies, and Sectoral Health
+  - [x] Support `foreign_labor_policy` in input policies and CLI validator in `ui/console.py`
+  - [x] Create Sectoral Health Report view `print_sectoral_health(state)` in `ui/console.py` and bind to shortcut `v` in `main.py`
+  - [x] Add unit tests for the new features in `tests/`

@@ -39,7 +39,15 @@ class EconomyEngine:
                 "unemployment_rate": 3.5,   # Unemployment (%)
                 "public_satisfaction": 60.0, # Public satisfaction (%)
                 "national_debt": 1200.0,    # National Debt (RM Billion)
-                "debt_to_gdp": 66.67        # Debt as % of annualized GDP (1200 / (450 * 4)) * 100
+                "debt_to_gdp": 66.67,       # Debt as % of annualized GDP
+                "poverty_rate": 5.6,        # % households below Poverty Line
+                "fdi": 15.0,                # Foreign Direct Investment (RM Billion)
+                "ddi": 25.0,                # Domestic Direct Investment (RM Billion)
+                "family_health": 80.0,      # Family health index (%)
+                "sme_health": 75.0,         # SME/PKS health index (%)
+                "utilities_health": 85.0,   # Utilities company health index (%)
+                "banking_health": 80.0,     # Commercial banks health index (%)
+                "govt_health": 78.0         # Government fiscal health index (%)
             },
             "households": {
                 "b40": {
@@ -94,7 +102,11 @@ class EconomyEngine:
                 "brent_crude": 80.0,        # USD / barrel
                 "fed_rate": 5.25,           # %
                 "shock_event": None,        # Event name of the quarter
-                "election_status": None     # Re-election message flag
+                "election_status": None,    # Re-election message flag
+                "foreign_labor_policy": "balanced", # "loose", "balanced", or "strict"
+                "registered_foreign_workers": 2.2,  # Million workers
+                "unregistered_foreign_workers": 1.2, # Million workers
+                "refugees": 0.2             # Million refugees
             }
         }
 
@@ -112,6 +124,28 @@ class EconomyEngine:
         corp_tax_rate = clamp(policies.get("corporate_tax", 0.24), 0.10, 0.35)
         subsidy_policy = policies.get("subsidy_regime", "blanket")
         dev_exp = clamp(policies.get("development_expenditure", 22.0), 10.0, 50.0)
+        labor_policy = policies.get("foreign_labor_policy", "balanced")
+        if labor_policy not in ["loose", "balanced", "strict"]:
+            labor_policy = "balanced"
+            
+        # Update foreign population and cost factors based on policy choice
+        if labor_policy == "loose":
+            self.state["external"]["registered_foreign_workers"] = 2.5
+            self.state["external"]["unregistered_foreign_workers"] = 1.4
+            labor_cost_factor = 0.90  # 10% cost reduction for SMEs (cheap labor)
+            b40_wage_factor = 0.95    # suppressed local B40 wages
+        elif labor_policy == "strict":
+            self.state["external"]["registered_foreign_workers"] = 1.8
+            self.state["external"]["unregistered_foreign_workers"] = 0.9
+            labor_cost_factor = 1.15  # 15% cost increase for SMEs
+            b40_wage_factor = 1.10    # boosted B40 wages (priority to locals)
+        else:
+            self.state["external"]["registered_foreign_workers"] = 2.2
+            self.state["external"]["unregistered_foreign_workers"] = 1.2
+            labor_cost_factor = 1.0
+            b40_wage_factor = 1.0
+            
+        self.state["external"]["foreign_labor_policy"] = labor_policy
         
         prev_metrics = self.state["metrics"]
         prev_govt = self.state["government"]
@@ -154,9 +188,10 @@ class EconomyEngine:
         # Update each segment
         for key in ["b40", "m40", "t20"]:
             segment = households[key]
-            # Update salary base on job factor (T20 is less affected by generic unemployment)
+            # Update salary based on job factor & foreign worker wage impact
             factor = job_factor if key != "t20" else 1.0
-            segment["salary"] = round(segment["salary_base"] * factor, 2)
+            wage_factor = b40_wage_factor if key == "b40" else 1.0
+            segment["salary"] = round(segment["salary_base"] * factor * wage_factor, 2)
             
             # Apply OPR updates to debt service
             # B40 sensitivity = 0.2, M40 = 0.6, T20 = 0.3
@@ -202,8 +237,8 @@ class EconomyEngine:
         sme_revenue = (total_consumption * 2.5 * 0.45) + 12.0 + (dev_exp * 0.35)
         # SME loan payments affected by OPR (sensitivity = 0.5, base = 20B)
         sme_loan_payment = calculate_debt_service(20.0, opr, 3.00, 0.5)
-        # SME costs = Wages (approx 45 Billion) + Utilities (5 Billion) + Loan payments
-        sme_costs = 45.0 + 5.0 + sme_loan_payment
+        # SME costs = Wages (approx 45 Billion * labor policy cost factor) + Utilities (5 Billion) + Loan payments
+        sme_costs = (45.0 * labor_cost_factor) + 5.0 + sme_loan_payment
         sme_profit = max(-10.0, sme_revenue - sme_costs)
         
         self.state["sme"] = {
@@ -243,8 +278,12 @@ class EconomyEngine:
         }
         
         # 10. Macroeconomic Aggregate Indicators
-        # Investment (OPR-sensitive base 115B + Corporate Profit multiplier)
-        investment = 115.0 * (1.0 - 0.04 * (opr - 3.00)) + max(0.0, sme_profit * 0.25)
+        # Calculate FDI & DDI (Foreign & Domestic Investment)
+        fdi = max(2.0, 15.0 * (1.0 - 1.5 * (corp_tax_rate - 0.24) - 0.2 * abs(myr_usd - 4.40)))
+        ddi = max(5.0, 25.0 * (1.0 - 0.05 * (opr - 3.00) + 0.1 * (sme_profit - 15.0)))
+        
+        # Investment (OPR-sensitive base + Corporate Profit multiplier)
+        investment = (ddi + fdi) * 2.5 + max(0.0, sme_profit * 0.25)
         
         # Net exports (sensitive to exchange rate)
         # Weaker MYR (myr_usd goes up) -> Exports boost, imports contract
@@ -301,6 +340,41 @@ class EconomyEngine:
             
         satisfaction = clamp(satisfaction, 0.0, 100.0)
         
+        # 11.2 Poverty Rate Calculation
+        pli = 2584.0 * (cpi / 2.5)  # Poverty Line Income adjusted for inflation
+        b40_income = households["b40"]["salary"] + households["b40"]["str_aid"]
+        poverty_rate = 5.6 + ((pli - b40_income) / 100.0) * 0.5 + (unemployment - 3.5) * 0.8
+        poverty_rate = clamp(poverty_rate, 1.5, 25.0)
+
+        # 11.3 Sectoral Health Indices
+        # Family Health
+        avg_dsr = ((households["b40"]["commitments"]["debt_service"] / households["b40"]["salary"]) + 
+                   (households["m40"]["commitments"]["debt_service"] / households["m40"]["salary"])) / 2.0
+        family_health = 100.0 - (avg_dsr * 150.0) - (poverty_rate * 2.0) + (households["m40"]["savings"] * 0.2)
+        family_health = clamp(family_health, 0.0, 100.0)
+
+        # SME Health
+        sme_health = 50.0 + (sme_profit / sme_revenue) * 100.0 - (opr - 3.00) * 10.0
+        if labor_policy == "loose":
+            sme_health += 5.0
+        elif labor_policy == "strict":
+            sme_health -= 5.0
+        sme_health = clamp(sme_health, 0.0, 100.0)
+
+        # Utilities Health
+        h_bills = sum(((households[k]["commitments"]["utilities"]) * households[k]["households"] * 3) / 1000.0 for k in ["b40", "m40", "t20"])
+        billing_receipts = h_bills + 5.0
+        utilities_health = 70.0 + (billing_receipts - 15.0) * 5.0 - (10.0 if subsidy_policy == "targeted" else 0.0)
+        utilities_health = clamp(utilities_health, 0.0, 100.0)
+
+        # Banking Health
+        banking_health = 80.0 + (opr - 3.00) * 5.0 - (unemployment - 3.5) * 4.0
+        banking_health = clamp(banking_health, 0.0, 100.0)
+
+        # Government Fiscal Health
+        govt_health = 100.0 - (debt_to_gdp - 55.0) * 1.5 + (fiscal_deficit / gdp) * 10.0
+        govt_health = clamp(govt_health, 0.0, 100.0)
+        
         # 12. Finalize State
         self.state["quarter"] += 1
         self.state["metrics"] = {
@@ -312,7 +386,15 @@ class EconomyEngine:
             "unemployment_rate": round(unemployment, 2),
             "public_satisfaction": round(satisfaction, 2),
             "national_debt": round(national_debt, 2),
-            "debt_to_gdp": round(debt_to_gdp, 2)
+            "debt_to_gdp": round(debt_to_gdp, 2),
+            "poverty_rate": round(poverty_rate, 2),
+            "fdi": round(fdi, 2),
+            "ddi": round(ddi, 2),
+            "family_health": round(family_health, 2),
+            "sme_health": round(sme_health, 2),
+            "utilities_health": round(utilities_health, 2),
+            "banking_health": round(banking_health, 2),
+            "govt_health": round(govt_health, 2)
         }
         
         return self.state

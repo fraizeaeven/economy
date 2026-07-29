@@ -7,6 +7,7 @@ from ui.console import (
     prompt_float,
     prompt_choice,
     print_separator,
+    print_sectoral_health,
     CLR_GREEN,
     CLR_RED,
     CLR_YELLOW,
@@ -38,6 +39,7 @@ def show_help():
     print(f"{CLR_BOLD}COMMAND HELP:{CLR_RESET}")
     print("  When prompted for OPR or policy inputs, you can enter:")
     print(f"    * {CLR_BOLD}t{CLR_RESET} - View historical trend charts (ASCII visualizers)")
+    print(f"    * {CLR_BOLD}v{CLR_RESET} - View Sectoral Health, Poverty, and Foreign Population report")
     print(f"    * {CLR_BOLD}s{CLR_RESET} - Save current game state to file")
     print(f"    * {CLR_BOLD}l{CLR_RESET} - Load previous game state from file")
     print(f"    * {CLR_BOLD}h{CLR_RESET} - Show this help menu")
@@ -112,6 +114,9 @@ def run_simulation():
                 render_history_trend(engine.history + [engine.state], "public_satisfaction", "Public Satisfaction")
                 render_history_trend(engine.history + [engine.state], "debt_to_gdp", "Debt-to-GDP (%)")
                 continue
+            elif raw_input == 'v':
+                print_sectoral_health(engine.state)
+                continue
             elif raw_input == 's':
                 if engine.save_state(SAVE_FILE):
                     print(f"{CLR_GREEN}Game saved successfully to {SAVE_FILE}!{CLR_RESET}")
@@ -148,6 +153,7 @@ def run_simulation():
                 corp_tax_val = prompt_float("  Set Corporate Tax rate (10% - 35%)", 0.10, 0.35, 0.24)
                 subsidy_regime = prompt_choice("  Set Subsidy Regime", ["blanket", "targeted"], engine.state["government"]["subsidy_policy"])
                 devex_val = prompt_float("  Set Development Expenditure (RM Billion)", 10.0, 50.0, engine.state["government"]["dev_exp"])
+                labor_policy = prompt_choice("  Set Foreign Labor Policy", ["loose", "balanced", "strict"], engine.state["external"]["foreign_labor_policy"])
                 
                 # Bundle and execute step
                 policies = {
@@ -155,7 +161,8 @@ def run_simulation():
                     "sst_rate": sst_val,
                     "corporate_tax": corp_tax_val,
                     "subsidy_regime": subsidy_regime,
-                    "development_expenditure": devex_val
+                    "development_expenditure": devex_val,
+                    "foreign_labor_policy": labor_policy
                 }
                 
                 # Clear active shock text from state for next turns

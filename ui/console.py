@@ -142,3 +142,60 @@ def prompt_choice(prompt_text, choices, default_val):
         if line in choices:
             return line
         print(f"{CLR_RED}Please select one of the following: {choices_str}{CLR_RESET}")
+
+def draw_bar(val: float, max_val: float = 100.0, width: int = 25) -> str:
+    percent = max(0.0, min(1.0, val / max_val))
+    filled = int(width * percent)
+    bar = "█" * filled + " " * (width - filled)
+    
+    if val >= 75.0:
+        color = CLR_GREEN
+    elif val <= 45.0:
+        color = CLR_RED
+    else:
+        color = CLR_YELLOW
+        
+    return f"[{color}{bar}{CLR_RESET}] {val:.1f}%"
+
+def print_sectoral_health(state: dict):
+    metrics = state["metrics"]
+    households = state["households"]
+    external = state["external"]
+    
+    print_separator("=")
+    print(f"{CLR_BOLD}{CLR_HEADER}             METS SECTORAL HEALTH & POPULATION REPORT{CLR_RESET}")
+    print_separator("=")
+    
+    print(f"{CLR_BOLD}* SECTOR HEALTH STATUS:{CLR_RESET}")
+    print(f"  - Family Health Index:    {draw_bar(metrics['family_health'])}")
+    print(f"  - SME / PKS Health Index: {draw_bar(metrics['sme_health'])}")
+    print(f"  - Utilities Health Index: {draw_bar(metrics['utilities_health'])}")
+    print(f"  - Banking Health Index:   {draw_bar(metrics['banking_health'])}")
+    print(f"  - Government Health:      {draw_bar(metrics['govt_health'])}")
+    
+    print_separator("-")
+    
+    print(f"{CLR_BOLD}* POPULATION & SOCIAL EQUILIBRIUM:{CLR_RESET}")
+    pli_val = 2584.0 * (metrics["cpi"] / 2.5)
+    print(f"  - Poverty Rate:           {CLR_YELLOW}{metrics['poverty_rate']:.2f}%{CLR_RESET} (Poverty Line: RM {pli_val:.2f}/month)")
+    print(f"  - B40 Monthly Income:     RM {households['b40']['salary'] + households['b40']['str_aid']:.2f} (Gaji: RM {households['b40']['salary']:.2f} | STR: RM {households['b40']['str_aid']:.2f})")
+    
+    print_separator("-")
+    
+    print(f"{CLR_BOLD}* LABOR FORCE PROFILE:{CLR_RESET}")
+    reg_fw = external.get("registered_foreign_workers", 2.2)
+    unreg_fw = external.get("unregistered_foreign_workers", 1.2)
+    refugees = external.get("refugees", 0.2)
+    policy = external.get("foreign_labor_policy", "balanced").upper()
+    
+    print(f"  - Registered Workers:     {reg_fw:.2f} Million")
+    print(f"  - Unregistered Workers:   {unreg_fw:.2f} Million")
+    print(f"  - Refugee Population:     {refugees:.2f} Million")
+    print(f"  - Current Labor Policy:   {CLR_BOLD}{policy}{CLR_RESET}")
+    
+    print_separator("-")
+    
+    print(f"{CLR_BOLD}* CAPITAL INVESTMENT INFLOWS (QUARTERLY):{CLR_RESET}")
+    print(f"  - Foreign Direct Investment (FDI): {CLR_GREEN}RM {metrics['fdi']:.2f} Billion{CLR_RESET}")
+    print(f"  - Domestic Direct Investment (DDI): {CLR_GREEN}RM {metrics['ddi']:.2f} Billion{CLR_RESET}")
+    print_separator()
