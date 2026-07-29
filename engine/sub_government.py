@@ -104,14 +104,77 @@ def step_government(
     # 4. Regional development effective multiplier
     dev_exp_effective = (dev_exp - east_malaysia_allocation) * 1.2 + (east_malaysia_allocation * 0.8)
     
-    # 5. Net exports
+    # 5. Dynamic Industry Sectors (GDP, Exports, Imports)
     ex_factor = (myr_usd - 4.40)
-    exports = 110.0 * (1.0 + 0.15 * ex_factor) + (state["external"]["brent_crude"] - 80.0) * 0.3 + tourism_revenue
-    imports = 95.0 * (1.0 - 0.10 * ex_factor)
-    net_exports = exports - imports
+    prev_sectors = current_snapshot.get("sectors", {})
     
-    # 6. GDP expenditure formula
-    gdp = (total_consumption * 2.5) + investment + (effective_operating_exp + dev_exp_effective) + net_exports
+    # 5.1 Services (Wholesale, Retail, Financials, Tourism)
+    consumption_ratio = (total_consumption * 2.5) / 200.0
+    tourism_ratio = tourism_revenue / 10.0
+    serv_gdp = 270.0 * (0.90 * consumption_ratio + 0.10 * tourism_ratio)
+    serv_exports = 20.0 * (0.50 * (1.0 + 0.10 * ex_factor) + 0.50 * tourism_ratio)
+    serv_imports = 15.0 * (1.0 - 0.05 * ex_factor)
+    
+    # 5.2 Manufacturing (E&E, Semiconductors, Petrochemicals)
+    mfg_gdp = 103.5 * (0.50 * (fdi / 15.0) + 0.50 * (1.0 + 0.15 * ex_factor))
+    mfg_exports = 90.0 * (0.50 * (fdi / 15.0) + 0.50 * (1.0 + 0.20 * ex_factor))
+    mfg_imports = 75.0 * (0.50 * (fdi / 15.0) + 0.50 * (1.0 - 0.10 * ex_factor))
+    
+    # 5.3 Agriculture & Commodities (Palm Oil, Rubber, smallholders)
+    agri_mult = 1.05 if labor_policy == "loose" else (0.92 if labor_policy == "strict" else 1.0)
+    agri_gdp = 31.5 * (1.0 + 0.04 * (state["external"]["brent_crude"] - 80.0) / 80.0) * agri_mult
+    agri_exports = 15.0 * (1.0 + 0.08 * (state["external"]["brent_crude"] - 80.0) / 80.0) * agri_mult
+    agri_imports = 22.0 * (1.0 - 0.05 * ex_factor)
+    
+    # 5.4 Mining & Petroleum (PETRONAS crude extraction, LNG)
+    mine_gdp = 27.0 * (state["external"]["brent_crude"] / 80.0)
+    mine_exports = 25.0 * (state["external"]["brent_crude"] / 80.0)
+    mine_imports = 10.0 * (1.0 - 0.05 * ex_factor)
+    
+    # 5.5 Construction (DeveX infrastructure, property development)
+    const_gdp = 18.0 * (dev_exp_effective / 22.0)
+    const_exports = 2.0 * (dev_exp_effective / 22.0)
+    const_imports = 5.0 * (dev_exp_effective / 22.0) * (1.0 - 0.05 * ex_factor)
+    
+    # Save sector snapshot details
+    state["sectors"] = {
+        "services": {
+            "gdp_contrib": round(serv_gdp, 2),
+            "exports": round(serv_exports, 2),
+            "imports": round(serv_imports, 2),
+            "growth_rate": round(((serv_gdp - prev_sectors.get("services", {}).get("gdp_contrib", 261.0)) / prev_sectors.get("services", {}).get("gdp_contrib", 261.0)) * 4.0 * 100.0, 2)
+        },
+        "manufacturing": {
+            "gdp_contrib": round(mfg_gdp, 2),
+            "exports": round(mfg_exports, 2),
+            "imports": round(mfg_imports, 2),
+            "growth_rate": round(((mfg_gdp - prev_sectors.get("manufacturing", {}).get("gdp_contrib", 103.5)) / prev_sectors.get("manufacturing", {}).get("gdp_contrib", 103.5)) * 4.0 * 100.0, 2)
+        },
+        "agriculture": {
+            "gdp_contrib": round(agri_gdp, 2),
+            "exports": round(agri_exports, 2),
+            "imports": round(agri_imports, 2),
+            "growth_rate": round(((agri_gdp - prev_sectors.get("agriculture", {}).get("gdp_contrib", 31.5)) / prev_sectors.get("agriculture", {}).get("gdp_contrib", 31.5)) * 4.0 * 100.0, 2)
+        },
+        "mining": {
+            "gdp_contrib": round(mine_gdp, 2),
+            "exports": round(mine_exports, 2),
+            "imports": round(mine_imports, 2),
+            "growth_rate": round(((mine_gdp - prev_sectors.get("mining", {}).get("gdp_contrib", 27.0)) / prev_sectors.get("mining", {}).get("gdp_contrib", 27.0)) * 4.0 * 100.0, 2)
+        },
+        "construction": {
+            "gdp_contrib": round(const_gdp, 2),
+            "exports": round(const_exports, 2),
+            "imports": round(const_imports, 2),
+            "growth_rate": round(((const_gdp - prev_sectors.get("construction", {}).get("gdp_contrib", 18.0)) / prev_sectors.get("construction", {}).get("gdp_contrib", 18.0)) * 4.0 * 100.0, 2)
+        }
+    }
+    
+    # 6. Aggregate GDP expenditure & Trade Balance
+    gdp = serv_gdp + mfg_gdp + agri_gdp + mine_gdp + const_gdp
+    exports = serv_exports + mfg_exports + agri_exports + mine_exports + const_exports
+    imports = serv_imports + mfg_imports + agri_imports + mine_imports + const_imports
+    net_exports = exports - imports
     
     # GDP Growth Rate
     gdp_growth = ((gdp - prev_gdp) / prev_gdp) * 4.0 * 100.0  # Annualized quarterly growth

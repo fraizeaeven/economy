@@ -277,3 +277,73 @@ def print_forecasting_report(forecast_data: dict):
     print_separator("-")
     print("Disclaimer: Projections assume no policy shifts or external shocks occur.")
     print_separator()
+
+def print_sectoral_gdp(state: dict):
+    """
+    Renders the Industry Sectors dashboard, detailing GDP shares, exports/imports,
+    and employment splits per household segment.
+    """
+    sectors = state.get("sectors", {})
+    metrics = state["metrics"]
+    total_gdp = metrics["gdp"]
+    
+    print_separator()
+    print(f"{CLR_BOLD}{CLR_CYAN}========================================================================{CLR_RESET}")
+    print(f"{CLR_BOLD}                 DOSM MALAYSIAN INDUSTRY SECTORAL REPORT{CLR_RESET}")
+    print(f"{CLR_BOLD}{CLR_CYAN}========================================================================{CLR_RESET}")
+    print(f"Total National GDP: RM {total_gdp:.2f} Billion")
+    print_separator("-")
+    
+    industry_profiles = {
+        "services": {
+            "name": "Services (Wholesale, Retail, Finance, Tourism, Utilities)",
+            "sme_concentration": "High (70% Micro/SMEs weight)",
+            "desc": "Primary driver of domestic consumption and tertiary job market.",
+            "b40": 40, "m40": 50, "t20": 65
+        },
+        "manufacturing": {
+            "name": "Manufacturing (E&E, Semiconductor, Petrochemical)",
+            "sme_concentration": "Low-Medium (20% SME weight, dominated by MNCs)",
+            "desc": "Engine of global exports and FDI capital accumulation.",
+            "b40": 10, "m40": 30, "t20": 15
+        },
+        "agriculture": {
+            "name": "Agriculture & Commodities (Palm Oil, Rubber, Paddy)",
+            "sme_concentration": "High (50% SME smallholders weight)",
+            "desc": "Commodity trade anchor, net food imports contributor.",
+            "b40": 30, "m40": 0, "t20": 5
+        },
+        "mining": {
+            "name": "Mining & Petroleum (PETRONAS crude extraction, LNG)",
+            "sme_concentration": "Very Low (5% SME weight, capital-intensive corps)",
+            "desc": "Sovereign dividend source, highly sensitive to oil shock spikes.",
+            "b40": 0, "m40": 15, "t20": 15
+        },
+        "construction": {
+            "name": "Construction (Infrastructure & Real Estate developments)",
+            "sme_concentration": "High (60% SME subcontractors weight)",
+            "desc": "Fuses public devex to employment, sensitive to interest rates.",
+            "b40": 20, "m40": 5, "t20": 0
+        }
+    }
+    
+    for key, data in sectors.items():
+        profile = industry_profiles.get(key, {})
+        gdp_contrib = data["gdp_contrib"]
+        gdp_pct = (gdp_contrib / total_gdp) * 100.0 if total_gdp > 0 else 0.0
+        g_rate = data.get("growth_rate", 0.0)
+        
+        g_color = CLR_GREEN if g_rate >= 0 else CLR_RED
+        g_rate_str = f"{g_color}{g_rate:+.2f}%{CLR_RESET}"
+        
+        print(f"\n{CLR_BOLD}* {profile.get('name', key.upper())}:{CLR_RESET}")
+        print(f"  - GDP Contribution:  RM {gdp_contrib:.2f} Billion ({gdp_pct:.2f}% of total GDP)")
+        print(f"  - Sector Growth:      {g_rate_str} (Annualized)")
+        print(f"  - Trade Volume:       Exports: RM {data['exports']:.2f}B | Imports: RM {data['imports']:.2f}B")
+        print(f"  - SME Concentration:  {profile.get('sme_concentration')}")
+        print(f"  - Role / Impact:      {profile.get('desc')}")
+        print(f"  - Segment Workers:    {CLR_BOLD}B40:{CLR_RESET} {profile.get('b40')}% | {CLR_BOLD}M40:{CLR_RESET} {profile.get('m40')}% | {CLR_BOLD}T20:{CLR_RESET} {profile.get('t20')}%")
+        
+    print_separator("-")
+    print("Source: DOSM Structural Indicators Simulation. Re-evaluates each Quarter.")
+    print_separator()

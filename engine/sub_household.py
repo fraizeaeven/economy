@@ -23,13 +23,28 @@ def step_households(
     prev_metrics = state["metrics"]
     sme_health = prev_metrics.get("sme_health", 75.0)
     
-    # 1. Sector Shares Definitions
+    # 1. Sector Shares Definitions (Company Type)
     # Shares: [Gov, Private, SME, Micro SME]
     sector_shares = {
         "b40": [0.15, 0.25, 0.35, 0.25],
         "m40": [0.25, 0.45, 0.25, 0.05],
         "t20": [0.15, 0.60, 0.20, 0.05]
     }
+    
+    # Industrial Sector shares
+    industry_shares = {
+        "b40": {"services": 0.40, "manufacturing": 0.10, "agriculture": 0.30, "mining": 0.00, "construction": 0.20},
+        "m40": {"services": 0.50, "manufacturing": 0.30, "agriculture": 0.00, "mining": 0.15, "construction": 0.05},
+        "t20": {"services": 0.65, "manufacturing": 0.15, "agriculture": 0.05, "mining": 0.15, "construction": 0.00}
+    }
+    
+    # Calculate industry-specific GDP multipliers relative to baseline
+    prev_sectors = state.get("sectors", {})
+    m_serv = prev_sectors.get("services", {}).get("gdp_contrib", 261.0) / 261.0
+    m_mfg = prev_sectors.get("manufacturing", {}).get("gdp_contrib", 103.5) / 103.5
+    m_agri = prev_sectors.get("agriculture", {}).get("gdp_contrib", 31.5) / 31.5
+    m_mine = prev_sectors.get("mining", {}).get("gdp_contrib", 27.0) / 27.0
+    m_const = prev_sectors.get("construction", {}).get("gdp_contrib", 18.0) / 18.0
     
     # OPR multiplier on Micro SMEs
     micro_opr_factor = 1.0 - 0.05 * (opr - 3.00)
@@ -42,25 +57,31 @@ def step_households(
         base = segment["salary_base"]
         
         # Calculate salaries per sector
-        # Gov is stable
         w_gov = base
         
-        # Private is affected by overall employment and brain drain suppression
         factor = job_factor if key != "t20" else 1.0
         salary_suppression = brain_drain_suppression if key in ["m40", "t20"] else 1.0
         w_priv = base * factor * salary_suppression
         
-        # SME is affected by employment, labor costs, and SME profitability
         wage_factor = b40_wage_factor if key == "b40" else 1.0
         w_sme = base * factor * wage_factor * sme_profit_factor
         
-        # Micro SME is affected by employment, labor costs, SME profit, and OPR interest burdens
         w_micro = base * factor * wage_factor * sme_profit_factor * micro_opr_factor
         
-        # Weighted salary calculation
-        shares = sector_shares[key]
-        weighted_salary = (shares[0] * w_gov) + (shares[1] * w_priv) + (shares[2] * w_sme) + (shares[3] * w_micro)
-        segment["salary"] = round(weighted_salary, 2)
+        c_shares = sector_shares[key]
+        weighted_company_salary = (c_shares[0] * w_gov) + (c_shares[1] * w_priv) + (c_shares[2] * w_sme) + (c_shares[3] * w_micro)
+        
+        # Industry multiplier effect
+        ind_share = industry_shares[key]
+        industry_multiplier = (
+            (ind_share["services"] * m_serv) +
+            (ind_share["manufacturing"] * m_mfg) +
+            (ind_share["agriculture"] * m_agri) +
+            (ind_share["mining"] * m_mine) +
+            (ind_share["construction"] * m_const)
+        )
+        
+        segment["salary"] = round(weighted_company_salary * industry_multiplier, 2)
         
         # Apply OPR updates to debt service
         sensitivity = 0.2 if key == "b40" else (0.6 if key == "m40" else 0.3)

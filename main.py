@@ -9,6 +9,7 @@ from ui.console import (
     print_separator,
     print_sectoral_health,
     print_forecasting_report,
+    print_sectoral_gdp,
     CLR_GREEN,
     CLR_RED,
     CLR_YELLOW,
@@ -28,7 +29,7 @@ def print_intro():
     print("You have been appointed to steer the economic ship of Malaysia.")
     print("Your mandate is to guide the country through a 5-year cycle (20 Quarters).")
     print("\nRules & Victory Conditions:")
-    print(f"  1. {CLR_BOLD}Debt Sustainability{CLR_RESET}: Keep National Debt-to-GDP below {CLR_RED}80.0%{CLR_RESET}. (Target: <65.0%)")
+    print(f"  1. {CLR_BOLD}Debt Sustainability{CLR_RESET}: Keep National Debt-to-GDP below {CLR_RED}80.0%{CLR_RESET}. (Target: <75.0%)")
     print(f"  2. {CLR_BOLD}Public Mandate{CLR_RESET}: Keep Public Satisfaction above {CLR_RED}20.0%{CLR_RESET}. (Target: >50.0% at Q20)")
     print("  3. Balances are delicate: raising OPR cools inflation but hurts GDP growth.")
     print("     Rationalizing subsidies saves budget but causes inflation and public anger.")
@@ -41,6 +42,7 @@ def show_help():
     print("  When prompted for OPR or policy inputs, you can enter:")
     print(f"    * {CLR_BOLD}t{CLR_RESET} - View historical trend charts (ASCII visualizers)")
     print(f"    * {CLR_BOLD}v{CLR_RESET} - View Sectoral Health, Poverty, and Foreign Population report")
+    print(f"    * {CLR_BOLD}i{CLR_RESET} - View DOSM Industry Sectoral Report (employment & trade)")
     print(f"    * {CLR_BOLD}p{CLR_RESET} - View Macroeconomic Projections (y = mx + c linear forecasting)")
     print(f"    * {CLR_BOLD}s{CLR_RESET} - Save current game state to file")
     print(f"    * {CLR_BOLD}l{CLR_RESET} - Load previous game state from file")
@@ -118,6 +120,9 @@ def run_simulation():
                 continue
             elif raw_input == 'v':
                 print_sectoral_health(engine.state)
+                continue
+            elif raw_input == 'i':
+                print_sectoral_gdp(engine.state)
                 continue
             elif raw_input == 'p':
                 forecast_data = engine.forecast_metrics()

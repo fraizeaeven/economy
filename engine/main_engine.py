@@ -114,6 +114,38 @@ class EconomyEngine:
                 "registered_foreign_workers": 2.2,  # Million workers
                 "unregistered_foreign_workers": 1.2, # Million workers
                 "refugees": 0.2             # Million refugees
+            },
+            "sectors": {
+                "services": {
+                    "gdp_contrib": 270.0,       # RM Billion (60% of GDP)
+                    "exports": 20.0,
+                    "imports": 15.0,
+                    "growth_rate": 4.5
+                },
+                "manufacturing": {
+                    "gdp_contrib": 103.5,       # RM Billion (23% of GDP)
+                    "exports": 90.0,
+                    "imports": 75.0,
+                    "growth_rate": 3.8
+                },
+                "agriculture": {
+                    "gdp_contrib": 31.5,        # RM Billion (7% of GDP)
+                    "exports": 15.0,
+                    "imports": 22.0,
+                    "growth_rate": 1.2
+                },
+                "mining": {
+                    "gdp_contrib": 27.0,        # RM Billion (6% of GDP)
+                    "exports": 25.0,
+                    "imports": 10.0,
+                    "growth_rate": -0.5
+                },
+                "construction": {
+                    "gdp_contrib": 18.0,        # RM Billion (4% of GDP)
+                    "exports": 2.0,
+                    "imports": 5.0,
+                    "growth_rate": 2.5
+                }
             }
         }
 
@@ -417,10 +449,10 @@ class EconomyEngine:
         # e.g., Q21 (Q20 step just completed), Q41 (Q40 completed), etc.
         if q > 1 and (q - 1) % 20 == 0:
             term = (q - 1) // 20
-            if metrics["debt_to_gdp"] <= 65.0 and metrics["public_satisfaction"] >= 50.0:
+            if metrics["debt_to_gdp"] <= 75.0 and metrics["public_satisfaction"] >= 50.0:
                 self.state["external"]["election_status"] = f"RE-ELECTED! You have successfully completed Term {term} and won the general election. Citizens have granted you a mandate for Term {term + 1}!"
             else:
-                return True, f"ELECTION_LOSS: You survived Term {term} (Quarters {q-20} to {q-1}), but failed to meet the election criteria (Debt-to-GDP < 65% and Public Approval > 50%). You lost the general election!"
+                return True, f"ELECTION_LOSS: You survived Term {term} (Quarters {q-20} to {q-1}), but failed to meet the election criteria (Debt-to-GDP < 75% and Public Approval > 50%). You lost the general election!"
                 
         return False, "ACTIVE"
 
