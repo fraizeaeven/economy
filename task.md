@@ -44,4 +44,11 @@
   - [x] Re-wire application main loop and unit test imports
   - [x] Verify complete logic parity using full unit and integration test suite
   - [x] Safely remove obsolete monolithic source code
+- [x] **Task 12: Household Sector Expansion**
+  - [x] Divide B40, M40, T20 segments into Gov, Private, SME, and Micro SME jobs
+  - [x] Integrate utility tariff policy regimes (subsidized, targeted, market rate) impacting household commitments
+  - [x] Integrate Petrol (RON95) and Diesel subsidy models, floating prices, transport fuel commitments, and SME cost spillovers
+  - [x] Add dynamic CPI inflation and public satisfaction transmission shocks
+  - [x] Implement CLI validators, input loops, and new unit tests inside `tests/test_household_expansion.py`
+
 

@@ -161,6 +161,11 @@ def run_simulation():
                 ex_rate_regime = prompt_choice("  Set Exchange Rate Regime", ["floating", "pegged_4.00", "pegged_3.80"], engine.state["government"].get("exchange_rate_policy", "floating"))
                 em_alloc = prompt_float("  Set East Malaysia Infrastructure Allocation (RM Billion)", 2.0, 15.0, engine.state["government"].get("east_malaysia_allocation", 4.0))
                 
+                # Fetch fuel & tariff inputs
+                petrol_reg = prompt_choice("  Set Petrol RON95 Subsidy Regime", ["blanket", "targeted_b40", "rationalized"], engine.state["government"].get("petrol_subsidy_regime", "blanket"))
+                diesel_reg = prompt_choice("  Set Diesel Subsidy Regime", ["blanket", "targeted_fleet", "rationalized"], engine.state["government"].get("diesel_subsidy_regime", "blanket"))
+                elec_tariff = prompt_choice("  Set Electricity Tariff Policy", ["subsidized", "targeted_t20", "market_rate"], engine.state["government"].get("electricity_tariff_policy", "subsidized"))
+                
                 # Bundle and execute step
                 policies = {
                     "opr": opr_val,
@@ -172,7 +177,10 @@ def run_simulation():
                     "tax_regime": tax_reg,
                     "epf_withdrawal_policy": epf_withdrawal,
                     "exchange_rate_policy": ex_rate_regime,
-                    "east_malaysia_allocation": em_alloc
+                    "east_malaysia_allocation": em_alloc,
+                    "petrol_subsidy_regime": petrol_reg,
+                    "diesel_subsidy_regime": diesel_reg,
+                    "electricity_tariff_policy": elec_tariff
                 }
                 
                 # Clear active shock text from state for next turns

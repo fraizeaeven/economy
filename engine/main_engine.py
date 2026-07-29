@@ -44,7 +44,9 @@ class EconomyEngine:
                 "east_malaysia_poverty": 14.5, # Sabah & Sarawak poverty (%)
                 "foreign_reserves": 115.0,  # BNM reserves (USD Billion)
                 "epf_pool": 750.0,          # KWSP total asset pool (RM Billion)
-                "tourism_revenue": 10.0     # Quarterly Tourism export earnings (RM Billion)
+                "tourism_revenue": 10.0,    # Quarterly Tourism export earnings (RM Billion)
+                "ron95_price": 2.05,        # Retail petrol price (RM/Litre)
+                "diesel_price": 2.15        # Retail diesel price (RM/Litre)
             },
             "households": {
                 "b40": {
@@ -92,7 +94,10 @@ class EconomyEngine:
                 "tax_regime": "sst",        # "sst" or "gst"
                 "epf_withdrawal_policy": "none", # "none", "targeted", or "unrestricted"
                 "exchange_rate_policy": "floating", # "floating", "pegged_4.00", or "pegged_3.80"
-                "east_malaysia_allocation": 4.0 # RM Billion
+                "east_malaysia_allocation": 4.0, # RM Billion
+                "petrol_subsidy_regime": "blanket", # "blanket", "targeted_b40", "rationalized"
+                "diesel_subsidy_regime": "blanket", # "blanket", "targeted_fleet", "rationalized"
+                "electricity_tariff_policy": "subsidized" # "subsidized", "targeted_t20", "market_rate"
             },
             "sme": {
                 "revenue": 120.0,
@@ -149,6 +154,18 @@ class EconomyEngine:
             policies.get("east_malaysia_allocation", prev_govt.get("east_malaysia_allocation", 4.0)),
             2.0, 15.0
         )
+        
+        petrol_regime = policies.get("petrol_subsidy_regime", prev_govt.get("petrol_subsidy_regime", "blanket"))
+        if petrol_regime not in ["blanket", "targeted_b40", "rationalized"]:
+            petrol_regime = "blanket"
+            
+        diesel_regime = policies.get("diesel_subsidy_regime", prev_govt.get("diesel_subsidy_regime", "blanket"))
+        if diesel_regime not in ["blanket", "targeted_fleet", "rationalized"]:
+            diesel_regime = "blanket"
+            
+        electricity_tariff = policies.get("electricity_tariff_policy", prev_govt.get("electricity_tariff_policy", "subsidized"))
+        if electricity_tariff not in ["subsidized", "targeted_t20", "market_rate"]:
+            electricity_tariff = "subsidized"
             
         # Update foreign population and cost factors based on policy choice
         if labor_policy == "loose":
@@ -168,6 +185,23 @@ class EconomyEngine:
             b40_wage_factor = 1.0
             
         self.state["external"]["foreign_labor_policy"] = labor_policy
+        
+        # Calculate RON95 and Diesel prices
+        brent_crude = self.state["external"]["brent_crude"]
+        if petrol_regime == "rationalized":
+            ron95_price = 2.05 + 0.02 * (brent_crude - 80.0)
+        else:
+            ron95_price = 2.05
+            
+        if diesel_regime == "rationalized":
+            diesel_price = 3.35
+        elif diesel_regime == "targeted_fleet":
+            diesel_price = 3.35  # retail price is 3.35, fleet card is 2.15
+        else:
+            diesel_price = 2.15
+            
+        self.state["metrics"]["ron95_price"] = round(ron95_price, 2)
+        self.state["metrics"]["diesel_price"] = round(diesel_price, 2)
         
         # 3. Apply Government Subsidy Policy Shifts
         operating_exp = 75.0
@@ -231,7 +265,11 @@ class EconomyEngine:
             b40_wage_factor,
             job_factor,
             brain_drain_suppression,
-            epf_policy
+            epf_policy,
+            ron95_price,
+            diesel_price,
+            electricity_tariff,
+            petrol_regime
         )
         
         # 7. Call Business sub-engine to update corporate earnings & unemployment
@@ -240,7 +278,8 @@ class EconomyEngine:
             total_consumption,
             dev_exp,
             opr,
-            labor_cost_factor
+            labor_cost_factor,
+            diesel_regime
         )
         
         # Recalculate finance parameters if they depend on the newly computed sme_profit
@@ -315,7 +354,11 @@ class EconomyEngine:
             
             operating_exp,
             b40_str_monthly,
-            m40_str_monthly
+            m40_str_monthly,
+            
+            petrol_regime,
+            diesel_regime,
+            electricity_tariff
         )
         
         # 9. Finalize state variables
@@ -342,7 +385,9 @@ class EconomyEngine:
             "east_malaysia_poverty": round(east_malaysia_poverty, 2),
             "foreign_reserves": round(foreign_reserves, 2),
             "epf_pool": round(epf_pool, 2),
-            "tourism_revenue": round(tourism_revenue, 2)
+            "tourism_revenue": round(tourism_revenue, 2),
+            "ron95_price": round(ron95_price, 2),
+            "diesel_price": round(diesel_price, 2)
         }
         
         return self.state

@@ -196,6 +196,13 @@ def print_sectoral_health(state: dict):
     print(f"  - BNM Foreign Reserves:   {res_color}USD {reserves_val:.2f} Billion{CLR_RESET} (Peg Guard limit: > USD 10.0B)")
     print(f"  - EPF (KWSP) Fund Pool:   {CLR_GREEN}RM {metrics.get('epf_pool', 750.0):.2f} Billion{CLR_RESET} (Withdrawal: {govt.get('epf_withdrawal_policy', 'none').upper()})")
     print(f"  - Exchange Rate Regime:   {CLR_BOLD}{govt.get('exchange_rate_policy', 'floating').upper()}{CLR_RESET}")
+    print(f"  - Electricity Tariff:     {CLR_BOLD}{govt.get('electricity_tariff_policy', 'subsidized').upper()}{CLR_RESET}")
+    
+    print_separator("-")
+    
+    print(f"{CLR_BOLD}* DOMESTIC FUEL SUBSIDIES & PRICING:{CLR_RESET}")
+    print(f"  - Petrol RON95 Price:     {CLR_GREEN}RM {metrics.get('ron95_price', 2.05):.2f} / Litre{CLR_RESET} (Regime: {govt.get('petrol_subsidy_regime', 'blanket').upper()})")
+    print(f"  - Diesel Price:           {CLR_GREEN}RM {metrics.get('diesel_price', 2.15):.2f} / Litre{CLR_RESET} (Regime: {govt.get('diesel_subsidy_regime', 'blanket').upper()})")
     
     print_separator("-")
     

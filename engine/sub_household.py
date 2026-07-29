@@ -1,5 +1,5 @@
 import json
-from engine.formulas import calculate_debt_service, calculate_consumption
+from engine.formulas import calculate_debt_service, calculate_consumption, clamp
 
 def step_households(
     state: dict,
@@ -8,21 +8,59 @@ def step_households(
     b40_wage_factor: float,
     job_factor: float,
     brain_drain_suppression: float,
-    epf_policy: str
+    epf_policy: str,
+    ron95_price: float,
+    diesel_price: float,
+    electricity_tariff: str,
+    petrol_regime: str
 ) -> tuple[float, float]:
     """
     Transition function for the Household segment.
-    Updates salaries, commitments, savings, EPF pool and returns total consumption and new EPF pool value.
+    Updates salaries based on Gov/Private/SME/Micro job sectors shares,
+    calculates utility and petrol commitments, EPF pool, and returns total consumption.
     """
     households = state["households"]
+    prev_metrics = state["metrics"]
+    sme_health = prev_metrics.get("sme_health", 75.0)
     
-    # 1. Update average salary based on employment & talent flight
+    # 1. Sector Shares Definitions
+    # Shares: [Gov, Private, SME, Micro SME]
+    sector_shares = {
+        "b40": [0.15, 0.25, 0.35, 0.25],
+        "m40": [0.25, 0.45, 0.25, 0.05],
+        "t20": [0.15, 0.60, 0.20, 0.05]
+    }
+    
+    # OPR multiplier on Micro SMEs
+    micro_opr_factor = 1.0 - 0.05 * (opr - 3.00)
+    # SME health multiplier on SME & Micro SME wages
+    sme_profit_factor = 0.8 + 0.2 * (sme_health / 100.0)
+    
+    # 2. Update Sectoral Salaries & commitments
     for key in ["b40", "m40", "t20"]:
         segment = households[key]
+        base = segment["salary_base"]
+        
+        # Calculate salaries per sector
+        # Gov is stable
+        w_gov = base
+        
+        # Private is affected by overall employment and brain drain suppression
         factor = job_factor if key != "t20" else 1.0
-        wage_factor = b40_wage_factor if key == "b40" else 1.0
         salary_suppression = brain_drain_suppression if key in ["m40", "t20"] else 1.0
-        segment["salary"] = round(segment["salary_base"] * factor * wage_factor * salary_suppression, 2)
+        w_priv = base * factor * salary_suppression
+        
+        # SME is affected by employment, labor costs, and SME profitability
+        wage_factor = b40_wage_factor if key == "b40" else 1.0
+        w_sme = base * factor * wage_factor * sme_profit_factor
+        
+        # Micro SME is affected by employment, labor costs, SME profit, and OPR interest burdens
+        w_micro = base * factor * wage_factor * sme_profit_factor * micro_opr_factor
+        
+        # Weighted salary calculation
+        shares = sector_shares[key]
+        weighted_salary = (shares[0] * w_gov) + (shares[1] * w_priv) + (shares[2] * w_sme) + (shares[3] * w_micro)
+        segment["salary"] = round(weighted_salary, 2)
         
         # Apply OPR updates to debt service
         sensitivity = 0.2 if key == "b40" else (0.6 if key == "m40" else 0.3)
@@ -31,8 +69,28 @@ def step_households(
             calculate_debt_service(base_debt, opr, 3.00, sensitivity), 2
         )
         
-    # 2. EPF calculations
-    # Employee 11% + Employer 13% = 24% of salary
+        if petrol_regime == "rationalized":
+            p_price = ron95_price
+        elif petrol_regime == "targeted_b40":
+            p_price = 2.05 if key == "b40" else (2.45 if key == "m40" else 2.85)
+        else:
+            p_price = 2.05
+            
+        fuel_litres = 60.0 if key == "b40" else (120.0 if key == "m40" else 200.0)
+        segment["commitments"]["fuel"] = round(fuel_litres * p_price, 2)
+        
+        # Electricity / Utility calculations
+        base_utils = 150.0 if key == "b40" else (400.0 if key == "m40" else 1000.0)
+        if electricity_tariff == "targeted_t20":
+            t_mult = 1.30 if key == "t20" else 1.00
+        elif electricity_tariff == "market_rate":
+            t_mult = 1.50 if key == "t20" else 1.25
+        else:
+            t_mult = 1.00
+            
+        segment["commitments"]["utilities"] = round(base_utils * t_mult, 2)
+        
+    # 3. EPF calculations
     total_epf_contribution = sum(
         (households[k]["salary"] * households[k]["households"] * 3 * 0.24) / 1000.0
         for k in ["b40", "m40", "t20"]
@@ -42,6 +100,7 @@ def step_households(
     epf_withdrawal_inject_m40 = 0.0
     epf_withdrawal_amt = 0.0
     
+    # EPF policy is read from parameters
     if epf_policy == "targeted":
         epf_withdrawal_amt = 5.0
         epf_withdrawal_inject_b40 = 3.0 / (households["b40"]["households"] * 3) * 1000.0
@@ -54,7 +113,7 @@ def step_households(
     prev_epf = state["metrics"].get("epf_pool", 750.0)
     epf_pool = max(0.0, prev_epf + total_epf_contribution - epf_withdrawal_amt)
     
-    # 3. Calculate Consumption & update savings
+    # 4. Calculate Consumption & update savings
     total_consumption = 0.0
     
     for key in ["b40", "m40", "t20"]:
@@ -69,7 +128,9 @@ def step_households(
         tax_rate = 0.0 if key == "b40" else (0.04 if key == "m40" else 0.16)
         personal_tax = q_gross_income * tax_rate
         
-        q_commitments = ((segment["commitments"]["utilities"] + segment["commitments"]["debt_service"]) * n_households * 3) / 1000.0
+        # Total commitments include: utilities + debt_service + fuel
+        monthly_commitments = segment["commitments"]["utilities"] + segment["commitments"]["debt_service"] + segment["commitments"].get("fuel", 0.0)
+        q_commitments = (monthly_commitments * n_households * 3) / 1000.0
         
         disposable_income = q_gross_income - personal_tax - q_commitments
         consumption = calculate_consumption(disposable_income, segment["mpc"])

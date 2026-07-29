@@ -1,5 +1,5 @@
 import json
-from engine.formulas import calculate_inflation, clamp, calculate_debt_service
+from engine.formulas import calculate_inflation, clamp
 
 def step_government(
     state: dict,
@@ -32,12 +32,17 @@ def step_government(
     # OPEX & STR
     operating_exp: float,
     b40_str_monthly: float,
-    m40_str_monthly: float
-) -> tuple[float, float, float, float, float, float, float, float, float, float, float]:
+    m40_str_monthly: float,
+    
+    # New Fuel and Electricity Regimes
+    petrol_regime: str,
+    diesel_regime: str,
+    electricity_tariff: str
+) -> tuple[float, float, float, float, float, float, float, float, float, float, float, float]:
     """
     Transition function for the Government / Fiscal & Social segment.
     Updates government spending, tax revenue, East Malaysia poverty, CPI, satisfaction, poverty rate, health indexes.
-    Returns (gdp, gdp_growth, cpi, national_debt, debt_to_gdp, satisfaction, poverty_rate, family_health, utilities_health, govt_health, east_malaysia_poverty).
+    Returns (gdp, gdp_growth, cpi, national_debt, debt_to_gdp, satisfaction, poverty_rate, family_health, sme_health, utilities_health, govt_health, east_malaysia_poverty).
     """
     households = state["households"]
     prev_metrics = current_snapshot["metrics"]
@@ -48,7 +53,18 @@ def step_government(
     m40_str_cost = (m40_str_monthly * households["m40"]["households"] * 3) / 1000.0
     total_str_cost = b40_str_cost + m40_str_cost
     
-    # 2. Taxes collected (GST vs SST)
+    # 2. Fuel Subsidy Cost & Savings
+    # Baseline opex of 75.0/60.0 includes 5.5B blanket fuel subsidies (4.0B RON95, 1.5B Diesel)
+    petrol_bill = 4.0 if petrol_regime == "blanket" else (1.5 if petrol_regime == "targeted_b40" else 0.0)
+    diesel_bill = 1.5 if diesel_regime == "blanket" else (0.5 if diesel_regime == "targeted_fleet" else 0.0)
+    
+    actual_fuel_cost = petrol_bill + diesel_bill
+    opex_savings = 5.5 - actual_fuel_cost
+    
+    # Adjusted operating expenditure
+    effective_operating_exp = max(30.0, operating_exp - opex_savings)
+    
+    # 3. Taxes collected (GST vs SST)
     if tax_regime == "gst":
         sst_revenue = 0.0
         tax_reg_rev = (total_consumption * 2.5) * 0.90 * 0.06  # 6% GST applied to 90% consumption
@@ -67,19 +83,22 @@ def step_government(
         
     total_tax_revenue = tax_reg_rev + corp_tax_revenue + (personal_tax_rev * 2.0) + 38.0  # 38.0B other state income
     
-    # 3. Government expenditure
-    total_govt_spending = operating_exp + dev_exp + total_str_cost
+    # Government spending
+    total_govt_spending = effective_operating_exp + dev_exp + total_str_cost
     fiscal_deficit = total_tax_revenue - total_govt_spending
     
     state["government"] = {
         "tax_revenue": round(total_tax_revenue, 2),
-        "operating_exp": round(operating_exp, 2),
+        "operating_exp": round(effective_operating_exp, 2),
         "dev_exp": round(dev_exp, 2),
         "subsidy_policy": subsidy_policy,
         "tax_regime": tax_regime,
         "epf_withdrawal_policy": epf_policy,
         "exchange_rate_policy": ex_rate_policy,
-        "east_malaysia_allocation": east_malaysia_allocation
+        "east_malaysia_allocation": east_malaysia_allocation,
+        "petrol_subsidy_regime": petrol_regime,
+        "diesel_subsidy_regime": diesel_regime,
+        "electricity_tariff_policy": electricity_tariff
     }
     
     # 4. Regional development effective multiplier
@@ -92,7 +111,7 @@ def step_government(
     net_exports = exports - imports
     
     # 6. GDP expenditure formula
-    gdp = (total_consumption * 2.5) + investment + (operating_exp + dev_exp_effective) + net_exports
+    gdp = (total_consumption * 2.5) + investment + (effective_operating_exp + dev_exp_effective) + net_exports
     
     # GDP Growth Rate
     gdp_growth = ((gdp - prev_gdp) / prev_gdp) * 4.0 * 100.0  # Annualized quarterly growth
@@ -113,6 +132,14 @@ def step_government(
         cpi += 2.0
     elif prev_govt.get("tax_regime", "sst") == "gst" and tax_regime == "sst":
         cpi -= 1.0
+        
+    # Apply Petrol rationalization one-off inflation shock (+1.2%)
+    if prev_govt.get("petrol_subsidy_regime", "blanket") != "rationalized" and petrol_regime == "rationalized":
+        cpi += 1.2
+        
+    # Apply Diesel rationalization one-off inflation shock (+0.8%)
+    if prev_govt.get("diesel_subsidy_regime", "blanket") != "rationalized" and diesel_regime == "rationalized":
+        cpi += 0.8
         
     # East Malaysia Poverty adjustment
     em_poverty_change = -0.3 * (east_malaysia_allocation - 4.0) - 0.2
@@ -154,6 +181,19 @@ def step_government(
         satisfaction += 4.0
     elif epf_policy == "unrestricted":
         satisfaction += 10.0
+        
+    # Petrol & Diesel subsidy removal backlash
+    if petrol_regime == "rationalized":
+        satisfaction -= 5.0
+    elif petrol_regime == "targeted_b40":
+        satisfaction -= 2.0
+        
+    if diesel_regime == "rationalized":
+        satisfaction -= 3.0
+        
+    # Electricity price hike backlash
+    if electricity_tariff == "market_rate":
+        satisfaction -= 4.0
         
     # Reserves insecurity check
     if foreign_reserves < 30.0:
