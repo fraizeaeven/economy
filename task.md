@@ -24,6 +24,6 @@
 - [x] **Task 7: Application Main Loop (`main.py`)**
   - [x] Implement main game loop running 20 quarters with introductory texts
   - [x] Wire user actions, event warnings, state logs, and restart commands
-- [ ] **Task 8: Unit Testing Suite (`tests/`)**
-  - [ ] Write tests verifying math formulas output consistency
-  - [ ] Write integration test running 20 step transitions validating metric constraints
+- [x] **Task 8: Unit Testing Suite (`tests/`)**
+  - [x] Write tests verifying math formulas output consistency
+  - [x] Write integration test running 20 step transitions validating metric constraints
