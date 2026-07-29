@@ -21,9 +21,9 @@
   - [x] Implement numeric input parsing and verification for user policy controls
 - [x] **Task 6: ASCII Data Visualization (`ui/charts.py`)**
   - [x] Renders horizontal bar charts for trends (e.g. Public Satisfaction historical logs)
-- [ ] **Task 7: Application Main Loop (`main.py`)**
-  - [ ] Implement main game loop running 20 quarters with introductory texts
-  - [ ] Wire user actions, event warnings, state logs, and restart commands
+- [x] **Task 7: Application Main Loop (`main.py`)**
+  - [x] Implement main game loop running 20 quarters with introductory texts
+  - [x] Wire user actions, event warnings, state logs, and restart commands
 - [ ] **Task 8: Unit Testing Suite (`tests/`)**
   - [ ] Write tests verifying math formulas output consistency
   - [ ] Write integration test running 20 step transitions validating metric constraints
