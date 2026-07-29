@@ -3,11 +3,11 @@
 - [x] **Task 1: Core Setup**
   - [x] Initialize `engine/__init__.py`, `ui/__init__.py`, `tests/__init__.py`
   - [x] Setup `requirements.txt` (empty/basic dependencies)
-- [ ] **Task 2: Mathematical Formulas (`engine/formulas.py`)**
-  - [ ] Implement `calculate_debt_service` with OPR transmission
-  - [ ] Implement `calculate_consumption` for B40, M40, T20 segments
-  - [ ] Implement `calculate_exchange_rate` (MYR/USD sensitivity to OPR differential & Brent crude)
-  - [ ] Implement `calculate_inflation` (demand-pull, imported, and subsidy-driven)
+- [x] **Task 2: Mathematical Formulas (`engine/formulas.py`)**
+  - [x] Implement `calculate_debt_service` with OPR transmission
+  - [x] Implement `calculate_consumption` for B40, M40, T20 segments
+  - [x] Implement `calculate_exchange_rate` (MYR/USD sensitivity to OPR differential & Brent crude)
+  - [x] Implement `calculate_inflation` (demand-pull, imported, and subsidy-driven)
 - [ ] **Task 3: Simulation Engine (`engine/engine.py`)**
   - [ ] Implement default state constructor matching Malaysian statistics
   - [ ] Implement `step()` method coordinates formulas to update state variables
