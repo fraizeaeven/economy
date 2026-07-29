@@ -13,9 +13,9 @@
   - [x] Implement `step()` method coordinates formulas to update state variables
   - [x] Implement `check_game_status()` for win/loss conditions
   - [x] Implement `save_state()` / `load_state()` JSON serialization
-- [ ] **Task 4: Macroeconomic Shock Events (`engine/events.py`)**
-  - [ ] Define shock templates (e.g. FED_RATE_HIKE, BRENT_OIL_CRASH, CIVIL_SERVANT_PAYRISE)
-  - [ ] Implement logic to apply shocks to current state attributes
+- [x] **Task 4: Macroeconomic Shock Events (`engine/events.py`)**
+  - [x] Define shock templates (e.g. FED_RATE_HIKE, BRENT_OIL_CRASH, CIVIL_SERVANT_PAYRISE)
+  - [x] Implement logic to apply shocks to current state attributes
 - [ ] **Task 5: Terminal UI and Input Validator (`ui/console.py`)**
   - [ ] Implement KPI dashboard formatter (using ANSI colors for limits)
   - [ ] Implement numeric input parsing and verification for user policy controls
