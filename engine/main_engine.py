@@ -88,7 +88,7 @@ class EconomyEngine:
                 }
             },
             "government": {
-                "tax_revenue": 82.5,        # RM Billion
+                "tax_revenue": 110.47,      # RM Billion
                 "operating_exp": 75.0,      # RM Billion
                 "dev_exp": 22.0,            # RM Billion
                 "subsidy_policy": "blanket", # "blanket" or "targeted"
@@ -98,7 +98,28 @@ class EconomyEngine:
                 "east_malaysia_allocation": 4.0, # RM Billion
                 "petrol_subsidy_regime": "blanket", # "blanket", "targeted_b40", "rationalized"
                 "diesel_subsidy_regime": "blanket", # "blanket", "targeted_fleet", "rationalized"
-                "electricity_tariff_policy": "subsidized" # "subsidized", "targeted_t20", "market_rate"
+                "electricity_tariff_policy": "subsidized", # "subsidized", "targeted_t20", "market_rate"
+                
+                # Detailed LHDN Taxes
+                "m40_tax_rate": 0.04,
+                "t20_tax_rate": 0.16,
+                "sme_tax_rate": 0.17,
+                "sst_sales_rate": 0.10,
+                "sst_service_rate": 0.08,
+                "gst_rate": 0.06,
+                "pita_rate": 0.38,
+                "rpgt_rate": 0.05,
+                "import_duty_rate": 0.05,
+                
+                # Default Collections breakdown
+                "coll_indirect": 7.0,
+                "coll_sme": 2.55,
+                "coll_corp": 20.0,
+                "coll_personal": 33.41,
+                "coll_pita": 10.26,
+                "coll_rpgt": 0.90,
+                "coll_import_duties": 6.35,
+                "coll_non_tax": 30.0
             },
             "sme": {
                 "revenue": 120.0,
@@ -200,6 +221,17 @@ class EconomyEngine:
         if electricity_tariff not in ["subsidized", "targeted_t20", "market_rate"]:
             electricity_tariff = "subsidized"
             
+        # Detailed LHDN tax policies extraction (with fallback to state and default values)
+        m40_tax_rate = clamp(policies.get("m40_tax_rate", prev_govt.get("m40_tax_rate", 0.04)), 0.00, 0.12)
+        t20_tax_rate = clamp(policies.get("t20_tax_rate", prev_govt.get("t20_tax_rate", 0.16)), 0.10, 0.30)
+        sme_tax_rate = clamp(policies.get("sme_tax_rate", prev_govt.get("sme_tax_rate", 0.17)), 0.10, 0.20)
+        sst_sales_rate = clamp(policies.get("sst_sales_rate", prev_govt.get("sst_sales_rate", 0.10)), 0.05, 0.15)
+        sst_service_rate = clamp(policies.get("sst_service_rate", prev_govt.get("sst_service_rate", 0.08)), 0.06, 0.12)
+        gst_rate = clamp(policies.get("gst_rate", prev_govt.get("gst_rate", 0.06)), 0.03, 0.10)
+        pita_rate = clamp(policies.get("pita_rate", prev_govt.get("pita_rate", 0.38)), 0.25, 0.45)
+        rpgt_rate = clamp(policies.get("rpgt_rate", prev_govt.get("rpgt_rate", 0.05)), 0.00, 0.15)
+        import_duty_rate = clamp(policies.get("import_duty_rate", prev_govt.get("import_duty_rate", 0.05)), 0.02, 0.15)
+        
         # Update foreign population and cost factors based on policy choice
         if labor_policy == "loose":
             self.state["external"]["registered_foreign_workers"] = 2.5
@@ -284,7 +316,8 @@ class EconomyEngine:
             epf_policy,
             corp_tax_rate,
             labor_policy,
-            unemployment
+            unemployment,
+            t20_tax_rate
         )
         
         # 6. Call Household sub-engine to update salaries, commitments and get total consumption
@@ -302,7 +335,9 @@ class EconomyEngine:
             ron95_price,
             diesel_price,
             electricity_tariff,
-            petrol_regime
+            petrol_regime,
+            m40_tax_rate,
+            t20_tax_rate
         )
         
         # 7. Call Business sub-engine to update corporate earnings & unemployment
@@ -312,7 +347,8 @@ class EconomyEngine:
             dev_exp,
             opr,
             labor_cost_factor,
-            diesel_regime
+            diesel_regime,
+            sme_tax_rate
         )
         
         # Recalculate finance parameters if they depend on the newly computed sme_profit
@@ -340,7 +376,8 @@ class EconomyEngine:
             epf_policy,
             corp_tax_rate,
             labor_policy,
-            next_unemployment
+            next_unemployment,
+            t20_tax_rate
         )
         
         # 8. Call Government sub-engine for taxes, regional gap and national indicators
@@ -392,7 +429,18 @@ class EconomyEngine:
             
             petrol_regime,
             diesel_regime,
-            electricity_tariff
+            electricity_tariff,
+            
+            # LHDN tax rates
+            m40_tax_rate,
+            t20_tax_rate,
+            sme_tax_rate,
+            sst_sales_rate,
+            sst_service_rate,
+            gst_rate,
+            pita_rate,
+            rpgt_rate,
+            import_duty_rate
         )
         
         # 9. Finalize state variables

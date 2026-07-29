@@ -56,6 +56,14 @@
   - [x] Build linear regression trend projections (y = mx + c) predicting next 4 quarters for GDP, Debt, Satisfaction, and CPI
   - [x] Bind keyboard command `p` to render linear projections forecasting dashboards
   - [x] Add automated unit tests inside `tests/test_forecasting.py` verifying prediction accuracy
+- [x] **Task 14: LHDN Tax System Expansion**
+  - [x] Integrate personalized individual income tax rates for B40, M40, and T20 households
+  - [x] Model standard corporate tax (suppressing FDI) vs preferential SME tax (reducing SME profits)
+  - [x] Integrate Sales and Service Tax (SST) rates vs Goods and Services Tax (GST) rate configurations
+  - [x] Implement specialty taxes: Petroleum Income Tax (PITA), Real Property Gains Tax (RPGT), and Customs Import Duties
+  - [x] Build keyboard command `x` linking to LHDN Tax Structure Report dashboard
+  - [x] Write automated tests inside `tests/test_tax_system.py` verifying tax spillover dynamics
+
 
 
 

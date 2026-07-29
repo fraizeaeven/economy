@@ -12,7 +12,9 @@ def step_households(
     ron95_price: float,
     diesel_price: float,
     electricity_tariff: str,
-    petrol_regime: str
+    petrol_regime: str,
+    m40_tax_rate: float = 0.04,
+    t20_tax_rate: float = 0.16
 ) -> tuple[float, float]:
     """
     Transition function for the Household segment.
@@ -146,7 +148,7 @@ def step_households(
         q_gross_income = (monthly_income * n_households * 3) / 1000.0
         
         # personal income tax
-        tax_rate = 0.0 if key == "b40" else (0.04 if key == "m40" else 0.16)
+        tax_rate = 0.0 if key == "b40" else (m40_tax_rate if key == "m40" else t20_tax_rate)
         personal_tax = q_gross_income * tax_rate
         
         # Total commitments include: utilities + debt_service + fuel

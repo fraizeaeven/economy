@@ -10,6 +10,7 @@ from ui.console import (
     print_sectoral_health,
     print_forecasting_report,
     print_sectoral_gdp,
+    print_tax_report,
     CLR_GREEN,
     CLR_RED,
     CLR_YELLOW,
@@ -43,6 +44,7 @@ def show_help():
     print(f"    * {CLR_BOLD}t{CLR_RESET} - View historical trend charts (ASCII visualizers)")
     print(f"    * {CLR_BOLD}v{CLR_RESET} - View Sectoral Health, Poverty, and Foreign Population report")
     print(f"    * {CLR_BOLD}i{CLR_RESET} - View DOSM Industry Sectoral Report (employment & trade)")
+    print(f"    * {CLR_BOLD}x{CLR_RESET} - View LHDN Tax Structure Report (collections & active rates)")
     print(f"    * {CLR_BOLD}p{CLR_RESET} - View Macroeconomic Projections (y = mx + c linear forecasting)")
     print(f"    * {CLR_BOLD}s{CLR_RESET} - Save current game state to file")
     print(f"    * {CLR_BOLD}l{CLR_RESET} - Load previous game state from file")
@@ -124,6 +126,9 @@ def run_simulation():
             elif raw_input == 'i':
                 print_sectoral_gdp(engine.state)
                 continue
+            elif raw_input == 'x':
+                print_tax_report(engine.state)
+                continue
             elif raw_input == 'p':
                 forecast_data = engine.forecast_metrics()
                 print_forecasting_report(forecast_data)
@@ -177,6 +182,31 @@ def run_simulation():
                 diesel_reg = prompt_choice("  Set Diesel Subsidy Regime", ["blanket", "targeted_fleet", "rationalized"], engine.state["government"].get("diesel_subsidy_regime", "blanket"))
                 elec_tariff = prompt_choice("  Set Electricity Tariff Policy", ["subsidized", "targeted_t20", "market_rate"], engine.state["government"].get("electricity_tariff_policy", "subsidized"))
                 
+                # Optional detailed LHDN taxes adjustment
+                m40_tax = engine.state["government"].get("m40_tax_rate", 0.04)
+                t20_tax = engine.state["government"].get("t20_tax_rate", 0.16)
+                sme_tax = engine.state["government"].get("sme_tax_rate", 0.17)
+                sst_sales = engine.state["government"].get("sst_sales_rate", 0.10)
+                sst_service = engine.state["government"].get("sst_service_rate", 0.08)
+                gst = engine.state["government"].get("gst_rate", 0.06)
+                pita = engine.state["government"].get("pita_rate", 0.38)
+                rpgt = engine.state["government"].get("rpgt_rate", 0.05)
+                imp_duty = engine.state["government"].get("import_duty_rate", 0.05)
+                
+                change_taxes = prompt_choice("  Would you like to adjust detailed LHDN tax rates?", ["y", "n"], "n")
+                if change_taxes == "y":
+                    m40_tax = prompt_float(f"    Set M40 Income Tax rate (0% - 12%, current {m40_tax*100:.1f}%)", 0.00, 0.12, m40_tax)
+                    t20_tax = prompt_float(f"    Set T20 Income Tax rate (10% - 30%, current {t20_tax*100:.1f}%)", 0.10, 0.30, t20_tax)
+                    sme_tax = prompt_float(f"    Set SME Business Tax rate (10% - 20%, current {sme_tax*100:.1f}%)", 0.10, 0.20, sme_tax)
+                    if tax_reg == "sst":
+                        sst_sales = prompt_float(f"    Set SST Sales Tax rate (5% - 15%, current {sst_sales*100:.1f}%)", 0.05, 0.15, sst_sales)
+                        sst_service = prompt_float(f"    Set SST Service Tax rate (6% - 12%, current {sst_service*100:.1f}%)", 0.06, 0.12, sst_service)
+                    else:
+                        gst = prompt_float(f"    Set GST rate (3% - 10%, current {gst*100:.1f}%)", 0.03, 0.10, gst)
+                    pita = prompt_float(f"    Set Petroleum Income Tax (PITA) rate (25% - 45%, current {pita*100:.1f}%)", 0.25, 0.45, pita)
+                    rpgt = prompt_float(f"    Set Real Property Gains Tax (RPGT) rate (0% - 15%, current {rpgt*100:.1f}%)", 0.00, 0.15, rpgt)
+                    imp_duty = prompt_float(f"    Set Customs Import Duties rate (2% - 15%, current {imp_duty*100:.1f}%)", 0.02, 0.15, imp_duty)
+                
                 # Bundle and execute step
                 policies = {
                     "opr": opr_val,
@@ -191,7 +221,18 @@ def run_simulation():
                     "east_malaysia_allocation": em_alloc,
                     "petrol_subsidy_regime": petrol_reg,
                     "diesel_subsidy_regime": diesel_reg,
-                    "electricity_tariff_policy": elec_tariff
+                    "electricity_tariff_policy": elec_tariff,
+                    
+                    # Detailed taxes
+                    "m40_tax_rate": m40_tax,
+                    "t20_tax_rate": t20_tax,
+                    "sme_tax_rate": sme_tax,
+                    "sst_sales_rate": sst_sales,
+                    "sst_service_rate": sst_service,
+                    "gst_rate": gst,
+                    "pita_rate": pita,
+                    "rpgt_rate": rpgt,
+                    "import_duty_rate": imp_duty
                 }
                 
                 # Clear active shock text from state for next turns

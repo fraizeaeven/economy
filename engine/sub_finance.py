@@ -13,7 +13,8 @@ def step_finance(
     epf_policy: str,
     corp_tax_rate: float,
     labor_policy: str,
-    unemployment: float
+    unemployment: float,
+    t20_tax_rate: float = 0.16
 ) -> tuple[float, float, float, float, float, float, float, float, float, float]:
     """
     Transition function for exchange rates, reserves, investments, brain drain, tourism, and banking health.
@@ -45,6 +46,8 @@ def step_finance(
     brain_drain = 3.0 + 1.5 * (myr_usd - 4.40) - 0.1 * (prev_satisfaction - 60.0)
     if tax_regime == "gst":
         brain_drain += 1.0
+    if t20_tax_rate > 0.25:
+        brain_drain += (t20_tax_rate - 0.25) * 50.0
     brain_drain = clamp(brain_drain, 1.0, 10.0)
     brain_drain_suppression = 1.0 - (max(0.0, brain_drain - 5.0) / 5.0) * 0.08
     

@@ -347,3 +347,57 @@ def print_sectoral_gdp(state: dict):
     print_separator("-")
     print("Source: DOSM Structural Indicators Simulation. Re-evaluates each Quarter.")
     print_separator()
+
+def print_tax_report(state: dict):
+    """
+    Renders the detailed Tax Structure report including LHDN collections breakdown
+    and active rates.
+    """
+    govt = state.get("government", {})
+    total_tax = govt.get("tax_revenue", 0.0)
+    
+    print_separator()
+    print(f"{CLR_BOLD}{CLR_GREEN}========================================================================{CLR_RESET}")
+    print(f"{CLR_BOLD}                 LHDN MALAYSIAN TAX STRUCTURE REPORT{CLR_RESET}")
+    print(f"{CLR_BOLD}{CLR_GREEN}========================================================================{CLR_RESET}")
+    print(f"Total Quarterly Tax Revenue: RM {total_tax:.2f} Billion")
+    print_separator("-")
+    
+    # Active Rates
+    tax_reg = govt.get("tax_regime", "sst").upper()
+    print(f"{CLR_BOLD}Active Tax Regimes & Policy Rates:{CLR_RESET}")
+    print(f"  - Personal Tax Rates:  B40: {CLR_BOLD}0.0%{CLR_RESET} | M40: {govt.get('m40_tax_rate', 0.04)*100:.1f}% | T20: {govt.get('t20_tax_rate', 0.16)*100:.1f}%")
+    print(f"  - Business Tax Rates:  SMEs: {govt.get('sme_tax_rate', 0.17)*100:.1f}% | Standard Corp: {state.get('metrics', {}).get('corporate_tax', 0.24)*100:.1f}%")
+    if tax_reg == "GST":
+        print(f"  - Indirect Tax:        GST System ({govt.get('gst_rate', 0.06)*100:.1f}%)")
+    else:
+        print(f"  - Indirect Tax:        SST System (Sales: {govt.get('sst_sales_rate', 0.10)*100:.1f}% | Service: {govt.get('sst_service_rate', 0.08)*100:.1f}%)")
+    print(f"  - Special/Other Rates: PITA (O&G): {govt.get('pita_rate', 0.38)*100:.1f}% | RPGT (Property): {govt.get('rpgt_rate', 0.05)*100:.1f}% | Import Duties: {govt.get('import_duty_rate', 0.05)*100:.1f}%")
+    print_separator("-")
+    
+    # Collections breakdown
+    coll_indirect = govt.get("coll_indirect", 0.0)
+    coll_sme = govt.get("coll_sme", 0.0)
+    coll_corp = govt.get("coll_corp", 0.0)
+    coll_personal = govt.get("coll_personal", 0.0)
+    coll_pita = govt.get("coll_pita", 0.0)
+    coll_rpgt = govt.get("coll_rpgt", 0.0)
+    coll_import_duties = govt.get("coll_import_duties", 0.0)
+    coll_non_tax = govt.get("coll_non_tax", 0.0)
+    
+    print(f"{CLR_BOLD}Quarterly Collections Breakdown (RM Billion):{CLR_RESET}")
+    print(f"  * {CLR_BOLD}Direct Taxes:{CLR_RESET}")
+    print(f"    - Personal Income Tax:     RM {coll_personal:>6.2f}B  ({(coll_personal/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    print(f"    - SME Business Tax:        RM {coll_sme:>6.2f}B  ({(coll_sme/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    print(f"    - Corporate Income Tax:    RM {coll_corp:>6.2f}B  ({(coll_corp/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    print(f"    - Petroleum Tax (PITA):    RM {coll_pita:>6.2f}B  ({(coll_pita/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    print(f"  * {CLR_BOLD}Indirect Taxes:{CLR_RESET}")
+    print(f"    - GST/SST Consumption Tax: RM {coll_indirect:>6.2f}B  ({(coll_indirect/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    print(f"    - Customs Import Duties:   RM {coll_import_duties:>6.2f}B  ({(coll_import_duties/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    print(f"  * {CLR_BOLD}Other Revenues:{CLR_RESET}")
+    print(f"    - Real Property Gains Tax: RM {coll_rpgt:>6.2f}B  ({(coll_rpgt/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    print(f"    - Non-Tax State Revenue:   RM {coll_non_tax:>6.2f}B  ({(coll_non_tax/total_tax*100 if total_tax>0 else 0):.1f}%)")
+    
+    print_separator("-")
+    print("Source: LHDN & Royal Malaysian Customs Simulation models.")
+    print_separator()

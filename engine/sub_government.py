@@ -37,7 +37,18 @@ def step_government(
     # New Fuel and Electricity Regimes
     petrol_regime: str,
     diesel_regime: str,
-    electricity_tariff: str
+    electricity_tariff: str,
+    
+    # LHDN tax rates
+    m40_tax_rate: float = 0.04,
+    t20_tax_rate: float = 0.16,
+    sme_tax_rate: float = 0.17,
+    sst_sales_rate: float = 0.10,
+    sst_service_rate: float = 0.08,
+    gst_rate: float = 0.06,
+    pita_rate: float = 0.38,
+    rpgt_rate: float = 0.05,
+    import_duty_rate: float = 0.05
 ) -> tuple[float, float, float, float, float, float, float, float, float, float, float, float]:
     """
     Transition function for the Government / Fiscal & Social segment.
@@ -64,24 +75,37 @@ def step_government(
     # Adjusted operating expenditure
     effective_operating_exp = max(30.0, operating_exp - opex_savings)
     
-    # 3. Taxes collected (GST vs SST)
+    # 3. Detailed Taxes Collected (LHDN and Customs Aligned)
     if tax_regime == "gst":
-        sst_revenue = 0.0
-        tax_reg_rev = (total_consumption * 2.5) * 0.90 * 0.06  # 6% GST applied to 90% consumption
+        gst_rev = (total_consumption * 2.5) * 0.90 * gst_rate
+        indirect_tax = gst_rev
     else:
-        sst_revenue = (total_consumption * 2.5) * 0.40 * sst_rate  # SST applied to 40% consumption
-        tax_reg_rev = sst_revenue
+        sst_sales_rev = (total_consumption * 2.5) * 0.15 * sst_sales_rate
+        sst_service_rev = (total_consumption * 2.5) * 0.25 * sst_service_rate
+        indirect_tax = sst_sales_rev + sst_service_rev
         
-    corp_tax_revenue = max(0.0, sme_profit * corp_tax_rate) + 20.0  # 20B base from large corps
+    sme_tax_rev = max(0.0, sme_profit * sme_tax_rate)
+    corp_tax_rev = 20.0 * (corp_tax_rate / 0.24) * (fdi / 15.0)
     
     # Personal tax collection
     personal_tax_rev = 0.0
     for key in ["b40", "m40", "t20"]:
         segment = households[key]
-        rate = 0.0 if key == "b40" else (0.04 if key == "m40" else 0.16)
-        personal_tax_rev += ((segment["salary"] + segment["str_aid"]) * segment["households"] * 3 / 1000.0) * rate
+        rate = 0.0 if key == "b40" else (m40_tax_rate if key == "m40" else t20_tax_rate)
+        # Note: We scale personal tax by 2.0 to account for additional non-salary tax revenues (investment income, capital gains etc)
+        personal_tax_rev += ((segment["salary"] + segment["str_aid"]) * segment["households"] * 3 / 1000.0) * rate * 2.0
         
-    total_tax_revenue = tax_reg_rev + corp_tax_revenue + (personal_tax_rev * 2.0) + 38.0  # 38.0B other state income
+    # Commodity & Special Taxes
+    pita_rev = state["sectors"]["mining"]["gdp_contrib"] * pita_rate
+    rpgt_rev = state["sectors"]["construction"]["gdp_contrib"] * rpgt_rate
+    
+    # Total Imports based customs duty
+    total_imports = sum(state["sectors"][k]["imports"] for k in state["sectors"])
+    import_duties_rev = total_imports * import_duty_rate
+    
+    non_tax_revenue = 30.0
+    
+    total_tax_revenue = indirect_tax + sme_tax_rev + corp_tax_rev + personal_tax_rev + pita_rev + rpgt_rev + import_duties_rev + non_tax_revenue
     
     # Government spending
     total_govt_spending = effective_operating_exp + dev_exp + total_str_cost
@@ -98,7 +122,28 @@ def step_government(
         "east_malaysia_allocation": east_malaysia_allocation,
         "petrol_subsidy_regime": petrol_regime,
         "diesel_subsidy_regime": diesel_regime,
-        "electricity_tariff_policy": electricity_tariff
+        "electricity_tariff_policy": electricity_tariff,
+        
+        # Detailed LHDN active tax policies
+        "m40_tax_rate": m40_tax_rate,
+        "t20_tax_rate": t20_tax_rate,
+        "sme_tax_rate": sme_tax_rate,
+        "sst_sales_rate": sst_sales_rate,
+        "sst_service_rate": sst_service_rate,
+        "gst_rate": gst_rate,
+        "pita_rate": pita_rate,
+        "rpgt_rate": rpgt_rate,
+        "import_duty_rate": import_duty_rate,
+        
+        # Detailed Collections breakdown (for the tax report dashboard)
+        "coll_indirect": round(indirect_tax, 2),
+        "coll_sme": round(sme_tax_rev, 2),
+        "coll_corp": round(corp_tax_rev, 2),
+        "coll_personal": round(personal_tax_rev, 2),
+        "coll_pita": round(pita_rev, 2),
+        "coll_rpgt": round(rpgt_rev, 2),
+        "coll_import_duties": round(import_duties_rev, 2),
+        "coll_non_tax": round(non_tax_revenue, 2)
     }
     
     # 4. Regional development effective multiplier
@@ -181,7 +226,7 @@ def step_government(
     
     # Inflation CPI (DOSM Weighted Basket)
     # CPI = 0.30*Food + 0.15*Transport + 0.23*Utility + 0.32*Core
-    cpi_base = 1.5 + myr_change * 4.0
+    cpi_base = 1.5 + myr_change * 4.0 + (import_duty_rate - 0.05) * 15.0
     
     prev_consumption = sum(current_snapshot["households"][k]["salary"] * current_snapshot["households"][k]["households"] * 3 / 1000.0 for k in ["b40", "m40", "t20"])
     consumption_growth = (total_consumption - prev_consumption) / prev_gdp if prev_gdp > 0 else 0.02

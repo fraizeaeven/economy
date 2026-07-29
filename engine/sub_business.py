@@ -7,7 +7,8 @@ def step_business(
     dev_exp: float,
     opr: float,
     labor_cost_factor: float,
-    diesel_regime: str
+    diesel_regime: str,
+    sme_tax_rate: float = 0.17
 ) -> tuple[float, float, float]:
     """
     Transition function for the Corporate/SME segment.
@@ -33,11 +34,13 @@ def step_business(
         "profit": round(sme_profit, 2)
     }
     
-    # Unemployment impact from SME profitability
+    # Unemployment impact from SME profitability after tax
     prev_unemployment = state["metrics"]["unemployment_rate"]
-    if sme_profit > 10.0:
+    sme_profit_after_tax = sme_profit - max(0.0, sme_profit * sme_tax_rate)
+    
+    if sme_profit_after_tax > 8.0:
         unemployment = max(3.0, prev_unemployment - 0.1)
-    elif sme_profit < 2.0:
+    elif sme_profit_after_tax < 1.5:
         unemployment = min(10.0, prev_unemployment + 0.2)
     else:
         unemployment = prev_unemployment
