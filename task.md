@@ -8,11 +8,11 @@
   - [x] Implement `calculate_consumption` for B40, M40, T20 segments
   - [x] Implement `calculate_exchange_rate` (MYR/USD sensitivity to OPR differential & Brent crude)
   - [x] Implement `calculate_inflation` (demand-pull, imported, and subsidy-driven)
-- [ ] **Task 3: Simulation Engine (`engine/engine.py`)**
-  - [ ] Implement default state constructor matching Malaysian statistics
-  - [ ] Implement `step()` method coordinates formulas to update state variables
-  - [ ] Implement `check_game_status()` for win/loss conditions
-  - [ ] Implement `save_state()` / `load_state()` JSON serialization
+- [x] **Task 3: Simulation Engine (`engine/engine.py`)**
+  - [x] Implement default state constructor matching Malaysian statistics
+  - [x] Implement `step()` method coordinates formulas to update state variables
+  - [x] Implement `check_game_status()` for win/loss conditions
+  - [x] Implement `save_state()` / `load_state()` JSON serialization
 - [ ] **Task 4: Macroeconomic Shock Events (`engine/events.py`)**
   - [ ] Define shock templates (e.g. FED_RATE_HIKE, BRENT_OIL_CRASH, CIVIL_SERVANT_PAYRISE)
   - [ ] Implement logic to apply shocks to current state attributes
