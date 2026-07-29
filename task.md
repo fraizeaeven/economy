@@ -16,11 +16,11 @@
 - [x] **Task 4: Macroeconomic Shock Events (`engine/events.py`)**
   - [x] Define shock templates (e.g. FED_RATE_HIKE, BRENT_OIL_CRASH, CIVIL_SERVANT_PAYRISE)
   - [x] Implement logic to apply shocks to current state attributes
-- [ ] **Task 5: Terminal UI and Input Validator (`ui/console.py`)**
-  - [ ] Implement KPI dashboard formatter (using ANSI colors for limits)
-  - [ ] Implement numeric input parsing and verification for user policy controls
-- [ ] **Task 6: ASCII Data Visualization (`ui/charts.py`)**
-  - [ ] Renders horizontal bar charts for trends (e.g. Public Satisfaction historical logs)
+- [x] **Task 5: Terminal UI and Input Validator (`ui/console.py`)**
+  - [x] Implement KPI dashboard formatter (using ANSI colors for limits)
+  - [x] Implement numeric input parsing and verification for user policy controls
+- [x] **Task 6: ASCII Data Visualization (`ui/charts.py`)**
+  - [x] Renders horizontal bar charts for trends (e.g. Public Satisfaction historical logs)
 - [ ] **Task 7: Application Main Loop (`main.py`)**
   - [ ] Implement main game loop running 20 quarters with introductory texts
   - [ ] Wire user actions, event warnings, state logs, and restart commands
