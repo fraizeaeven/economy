@@ -93,7 +93,8 @@ class EconomyEngine:
             "external": {
                 "brent_crude": 80.0,        # USD / barrel
                 "fed_rate": 5.25,           # %
-                "shock_event": None         # Event name of the quarter
+                "shock_event": None,        # Event name of the quarter
+                "election_status": None     # Re-election message flag
             }
         }
 
@@ -198,7 +199,7 @@ class EconomyEngine:
             
         # 8. SME/PKS Segment Calculations
         # SME revenue driven by consumption, development projects, exports
-        sme_revenue = (total_consumption * 0.45) + 12.0 + (dev_exp * 0.35)
+        sme_revenue = (total_consumption * 2.5 * 0.45) + 12.0 + (dev_exp * 0.35)
         # SME loan payments affected by OPR (sensitivity = 0.5, base = 20B)
         sme_loan_payment = calculate_debt_service(20.0, opr, 3.00, 0.5)
         # SME costs = Wages (approx 45 Billion) + Utilities (5 Billion) + Loan payments
@@ -218,7 +219,7 @@ class EconomyEngine:
         total_str_cost = b40_str_cost + m40_str_cost
         
         # Taxes collected
-        sst_revenue = total_consumption * sst_rate
+        sst_revenue = (total_consumption * 2.5) * sst_rate
         corp_tax_revenue = max(0.0, sme_profit * corp_tax_rate) + 20.0  # 20B base from large corps
         
         # Personal tax collection
@@ -228,7 +229,7 @@ class EconomyEngine:
             rate = 0.0 if key == "b40" else (0.04 if key == "m40" else 0.16)
             personal_tax_rev += ((segment["salary"] + segment["str_aid"]) * segment["households"] * 3 / 1000.0) * rate
             
-        total_tax_revenue = sst_revenue + corp_tax_revenue + personal_tax_rev
+        total_tax_revenue = sst_revenue + corp_tax_revenue + (personal_tax_rev * 2.0) + 38.0  # 38.0B other state income
         
         # Government expenditure
         total_govt_spending = operating_exp + dev_exp + total_str_cost
@@ -242,8 +243,8 @@ class EconomyEngine:
         }
         
         # 10. Macroeconomic Aggregate Indicators
-        # Investment (OPR-sensitive base 90B + Corporate Profit multiplier)
-        investment = 90.0 * (1.0 - 0.04 * (opr - 3.00)) + max(0.0, sme_profit * 0.25)
+        # Investment (OPR-sensitive base 115B + Corporate Profit multiplier)
+        investment = 115.0 * (1.0 - 0.04 * (opr - 3.00)) + max(0.0, sme_profit * 0.25)
         
         # Net exports (sensitive to exchange rate)
         # Weaker MYR (myr_usd goes up) -> Exports boost, imports contract
@@ -253,7 +254,7 @@ class EconomyEngine:
         net_exports = exports - imports
         
         # GDP expenditure formula
-        gdp = total_consumption + investment + (operating_exp + dev_exp) + net_exports
+        gdp = (total_consumption * 2.5) + investment + (operating_exp + dev_exp) + net_exports
         
         # GDP Growth Rate
         prev_gdp = prev_metrics["gdp"]
@@ -319,8 +320,8 @@ class EconomyEngine:
     def check_game_status(self) -> tuple[bool, str]:
         """
         Evaluates current metrics for game completion:
-        - Win: Quarter > 20 with debt_to_gdp < 65% and satisfaction > 50%
-        - Loss: Debt-to-GDP > 80% (Default/Bailout) or public satisfaction < 20% (Civil unrest/collapse)
+        - Win/Re-election: Every 20 quarters, checks if debt_to_gdp < 65% and satisfaction > 50%
+        - Loss: Debt-to-GDP > 80% or public satisfaction < 20%, or losing an election.
         """
         metrics = self.state["metrics"]
         q = self.state["quarter"]
@@ -331,11 +332,14 @@ class EconomyEngine:
         if metrics["public_satisfaction"] <= 20.0:
             return True, "CIVIL_UNREST: Public satisfaction has plummeted below 20%. Widespread protests and strikes have paralyzed the country. Government dissolved!"
             
-        if q > 20:
+        # Check election at the end of each 20-quarter cycle (Term)
+        # e.g., Q21 (Q20 step just completed), Q41 (Q40 completed), etc.
+        if q > 1 and (q - 1) % 20 == 0:
+            term = (q - 1) // 20
             if metrics["debt_to_gdp"] <= 65.0 and metrics["public_satisfaction"] >= 50.0:
-                return True, "VICTORY: You successfully guided the Malaysian economy for 5 years! Debt-to-GDP is stable below 65%, and you got re-elected with high public approval."
+                self.state["external"]["election_status"] = f"RE-ELECTED! You have successfully completed Term {term} and won the general election. Citizens have granted you a mandate for Term {term + 1}!"
             else:
-                return True, "GAME_OVER: You survived 5 years, but failed to meet the election criteria (Debt-to-GDP < 65% and Public Approval > 50%). You lost the general election."
+                return True, f"ELECTION_LOSS: You survived Term {term} (Quarters {q-20} to {q-1}), but failed to meet the election criteria (Debt-to-GDP < 65% and Public Approval > 50%). You lost the general election!"
                 
         return False, "ACTIVE"
 

@@ -36,10 +36,13 @@ class TestIntegration(unittest.TestCase):
             # Verify satisfaction index is clamped
             self.assertTrue(0.0 <= state["metrics"]["public_satisfaction"] <= 100.0)
 
-        # Check ending state
+        # Check ending state (At Q21, after Q20 completes, election is evaluated)
         is_over, reason = engine.check_game_status()
-        self.assertTrue(is_over)
-        self.assertIn("VICTORY" in reason or "GAME_OVER" in reason or "DEBT_CRISIS" in reason or "CIVIL_UNREST" in reason, [True])
+        # With default healthy policies, they should survive election without game over
+        self.assertFalse(is_over)
+        self.assertEqual(reason, "ACTIVE")
+        self.assertIsNotNone(engine.state["external"]["election_status"])
+        self.assertIn("RE-ELECTED", engine.state["external"]["election_status"])
 
 if __name__ == '__main__':
     unittest.main()

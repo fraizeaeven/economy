@@ -53,10 +53,7 @@ def run_simulation():
         is_over, reason = engine.check_game_status()
         if is_over:
             print_separator("=")
-            if "VICTORY" in reason:
-                print(f"{CLR_BOLD}{CLR_GREEN}🏆 CONGRATULATIONS! YOU HAVE COMPLETED YOUR MANDATE!{CLR_RESET}")
-            else:
-                print(f"{CLR_BOLD}{CLR_RED}🚨 MISSION FAILED!{CLR_RESET}")
+            print(f"{CLR_BOLD}{CLR_RED}🚨 GAME OVER: SIMULATION ENDED{CLR_RESET}")
             print(f"\n{reason}")
             print_separator("=")
             
@@ -68,6 +65,16 @@ def run_simulation():
                 print("Thank you for playing METS!")
                 sys.exit(0)
                 
+        # Check and print re-election victory
+        election_msg = engine.state["external"].get("election_status")
+        if election_msg:
+            print_separator("=")
+            print(f"{CLR_BOLD}{CLR_GREEN}🎉 ELECTION VICTORY: {election_msg}{CLR_RESET}")
+            print_separator("=")
+            engine.state["external"]["election_status"] = None
+            input("Press Enter to begin your next term...")
+            print("\n" * 5)
+            
         # 1. Print dashboard
         print_dashboard(engine.state)
         
